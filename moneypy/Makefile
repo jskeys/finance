@@ -42,7 +42,7 @@ $(build_dir)/.install: $(py_dir)/setup.cfg $(py_dir)/setup.py $(py_src)
 .PHONY: lint
 lint: $(build_dir)/.lint
 $(build_dir)/.lint: $(py_src) .flake8 | $(build_dir)
-	python3 -m flake8 --verbose --tee --config .flake8 $(py_src)
+	python3 -m flake8 -v --tee --output-file $(build_dir)/flake.log --color never --config .flake8 $(py_src)
 	touch $@
 
 $(build_dir):
