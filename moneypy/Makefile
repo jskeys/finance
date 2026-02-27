@@ -3,6 +3,7 @@ build_dir=./build
 run_black := python3 -m black --line-length 100 -v
 
 py_dir=${CURDIR}
+py_src_dir=$(py_dir)/src
 py_dist=$(build_dir)/dist
 py_src=$(shell find $(py_src_dir) -name "*.py")
 
@@ -35,7 +36,7 @@ $(build_dir)/.typecheck: $(py_src) | $(build_dir)
 
 .PHONY: install
 install: $(build_dir)/.install
-$(build_dir)/.install: $(py_dir)/setup.cfg $(py_dir)/setup.py $(py_src)
+$(build_dir)/.install: $(py_dir)/pyproject.toml $(py_src) | $(build_dir)
 	python3 -m pip install -e $(py_dir)[dev]
 	touch $@
 

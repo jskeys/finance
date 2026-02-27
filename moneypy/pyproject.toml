@@ -4,3 +4,28 @@ requires = [
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "moneypy"
+version = "0.1.0"
+dependencies = [
+    "requests==2.32.3",
+    "pandas==2.0.3",
+    "pyyaml==6.0.2",
+]
+requires-python = ">=3.8"
+authors = [
+    {name = "Jon Sass", email="donny.creamer@gmail.com"}
+]
+description = "Money tools"
+
+[project.optional-dependencies]
+dev = [
+    "ruff==0.15.4",
+    "build==1.2.2.post1",
+    "flake8==7.0.0",
+    "flake8-docstrings==1.7.0",
+    "mypy==1.10.0",
+    "types-requests==2.32.0.20240602",
+    "types-pyyaml==6.0.12.20241230",
+]
