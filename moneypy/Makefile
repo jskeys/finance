@@ -14,9 +14,9 @@ all:
 	@echo $(py_src)
 
 .PHONY: dist
-dist: $(build_dir)/.dist
-$(build_dir)/.dist: $(py_src)
-	python3 -m build --sdist --wheel --no-isolation -o $(py_dist)
+dist: $(build_dir)/.dist | $(build_dir)
+$(build_dir)/.dist: $(py_src) pyproject.toml
+	uv build -o $(build_dir)
 	touch $@
 
 .PHONY: check
