@@ -1,13 +1,13 @@
 build_dir=./build
 
-run_black := python3 -m black --line-length 100 -v
 
 py_dir=${CURDIR}
 py_src_dir=$(py_dir)/src
 py_dist=$(build_dir)/dist
-py_src=$(shell find $(py_src_dir) -name "*.py")
-
 py_version=$(py_src_dir)/version.py
+
+py_src=$(shell find $(py_src_dir) -name "*.py")
+run_format := python3 -m ruff format --line-length 100 -v
 
 all:
 	@echo $(py_dir)
@@ -25,7 +25,7 @@ check: format lint typecheck
 .PHONY: format
 format: $(build_dir)/.format
 $(build_dir)/.format: $(py_src) | $(build_dir)
-	$(run_black) $^
+	$(run_format) $^
 	touch $@
 
 .PHONY: typecheck
