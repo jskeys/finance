@@ -108,7 +108,7 @@ if __name__ == "__main__":
             entries=equal_splitter.split(
                 cost=Decimal(e["amount"]),
                 transaction_uid=uid,
-                creditors=[accounts[name] for name in e["payers"]],
+                creditors=tuple([accounts[name] for name in e["payers"]]),
                 debtors=tuple(accounts.values()),
             ),
             description=e["description"],
