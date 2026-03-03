@@ -139,4 +139,4 @@ class Transaction:
     @property
     def gross_cost(self) -> Decimal:
         """Get the gross cost or magnitude of the economic event."""
-        return sum(entry.amount for entry in self.entries if entry.amount > 0)
+        return sum((entry.amount for entry in self.entries if entry.amount > 0), Decimal(0))
