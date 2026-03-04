@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from decimal import Decimal, ROUND_HALF_EVEN
 import numpy as np
 import numpy.typing as npt
+
+
+CURRENCY_EPSILON = Decimal("1.00")
+ROUNDING_STRATEGY = ROUND_HALF_EVEN
 
 
 def calc_annuity(
