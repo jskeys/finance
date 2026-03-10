@@ -1,8 +1,11 @@
 import dataclasses
+import logging
 import typing
 from decimal import Decimal
 
 from .core import ZERO, to_decimal
+
+_logger = logging.getLogger(__spec__.name)
 
 
 @dataclasses.dataclass(frozen=True, order=True)
@@ -96,9 +99,9 @@ class RegularTaxSystem:
 
 @dataclasses.dataclass()
 class AlternativeMinimumTaxSystem:
-    MAX_EXEMPTION = Decimal(140200)
+    MAX_EXEMPTION = Decimal("140_200")
     PHASEOUT_RATE = Decimal("0.5")
-    PHASEOUT_THRESHOLD = Decimal(1_000_000)
+    PHASEOUT_THRESHOLD = Decimal("1_000_000")
 
     def __post_init__(self):
         self._income_tax_schedule = Schedule(
@@ -118,6 +121,7 @@ class AlternativeMinimumTaxSystem:
     def calculate_exemption(self, ordinary_income: Decimal, long_term_capital_gains: Decimal):
         amount_above_threshold = max(ZERO, ordinary_income - self.PHASEOUT_THRESHOLD)
         reduction = min(amount_above_threshold * self.PHASEOUT_RATE, self.MAX_EXEMPTION)
+        _logger.info(f"AMT Exemption: {self.MAX_EXEMPTION - reduction}")
         return self.MAX_EXEMPTION - reduction
 
     def calculate_tax(self, ordinary_income: Decimal, long_term_capital_gains: Decimal):
