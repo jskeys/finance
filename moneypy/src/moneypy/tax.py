@@ -3,10 +3,24 @@ import logging
 import typing
 from decimal import Decimal
 
-from .core import ZERO, to_decimal
+from .core import VectorTuple, ZERO, to_decimal
 from .securities import IncentiveStockOption, ISODisposition
 
 _logger = logging.getLogger(__spec__.name)
+
+
+@dataclasses.dataclass(frozen=True)
+class Income(VectorTuple):
+    ordinary: Decimal = ZERO
+    ltcg: Decimal = ZERO
+
+    def __repr__(self):
+        return ", ".join(
+            [
+                f"{field.name}: ${getattr(self, field.name):,.2f}"
+                for field in dataclasses.fields(self)
+            ]
+        )
 
 
 @dataclasses.dataclass(frozen=True, order=True)
@@ -68,7 +82,7 @@ class RegularTaxSystem:
             Bracket(768700, 0.37),
         ]
     )
-    ltcg_income_SCHEDULE = Schedule(
+    LTCG_INCOME_SCHEDULE = Schedule(
         [
             Bracket(0, 0.0),
             Bracket(98900, 0.15),
@@ -77,35 +91,24 @@ class RegularTaxSystem:
     )
 
     def calculate_tax(self, w2_income: Decimal, isos: typing.List[IncentiveStockOption], year: int):
-        ordinary_income = w2_income
-        ltcg_income = 0
+        income = Income(ordinary=w2_income)
 
-        iso_ordinary_income, iso_ltcg_income = self._process_isos(isos, year)
-        ordinary_income += iso_ordinary_income
-        ltcg_income += iso_ltcg_income
+        income += self._process_isos(isos, year)
+        _logger.info(f"Gross Income: {income}.")
+        _logger.info(f"Total Income: $ {sum(income, ZERO):,.2f}.")
 
-        _logger.info(f"Total ordinary income is ${ordinary_income:,.2f}.")
-        _logger.info(f"Total ltcg_income income is is ${ordinary_income:,.2f}.")
+        income -= self._apply_std_deduction(income)
+        _logger.info(f"Deducted Income: {income}.")
+        _logger.info(f"Deducted Total Income: $ {sum(income, ZERO):,.2f}.")
 
-        ordinary_income, ltcg_income = self._apply_standard_deduction(ordinary_income, ltcg_income)
-
-        _logger.info(f"Taxable ordinary income: ${ordinary_income:,.2f}")
-        _logger.info(f"Taxable long-term capital gains: ${ltcg_income:,.2f}")
-
-        ordinary_income_tax = sum(self.ORDINARY_INCOME_SCHEDULE.apply(ordinary_income))
-        ltcg_income_tax = sum(self.ltcg_income_SCHEDULE.apply(ordinary_income + ltcg_income)) - sum(
-            self.ltcg_income_SCHEDULE.apply(ordinary_income)
+        ordinary_income_tax = sum(self.ORDINARY_INCOME_SCHEDULE.apply(income.ordinary))
+        ltcg_income_tax = sum(self.LTCG_INCOME_SCHEDULE.apply(income.ordinary + income.ltcg)) - sum(
+            self.LTCG_INCOME_SCHEDULE.apply(income.ordinary)
         )
-
-        _logger.info(f"Ordinary income tax: ${ordinary_income_tax:,.2f}")
-        _logger.info(f"Long-term capital gains tax: ${ltcg_income_tax:,.2f}")
-        _logger.info(f"Total tax: ${ordinary_income_tax + ltcg_income_tax:,.2f}")
 
         return ordinary_income_tax + ltcg_income_tax
 
-    def _apply_standard_deduction(
-        self, ordinary_income: Decimal, ltcg_income: Decimal
-    ) -> typing.Tuple[Decimal, Decimal]:
+    def _apply_std_deduction(self, income: Income) -> Income:
         """Apply the standard deduction against ordinary income then ltcg_income."""
 
         # Determine how to apply the standard deduction. It reduces ordinary
@@ -114,14 +117,11 @@ class RegularTaxSystem:
         deduction_schedule = Schedule(
             [
                 Bracket(ZERO),
-                Bracket(ordinary_income),
+                Bracket(income.ordinary),
             ]
         ).apply(self.STANDARD_DEDUCTION)
 
-        ordinary_income -= deduction_schedule[0]
-        ltcg_income -= deduction_schedule[1]
-
-        return ordinary_income, ltcg_income
+        return Income(*deduction_schedule)
 
     @staticmethod
     def _process_isos(
@@ -143,7 +143,7 @@ class RegularTaxSystem:
                 ltcg_income += iso.net_income
                 _logger.info(f"Added ${iso.net_income:,.2f} to long-term capital gains.")
 
-        return ordinary_income, ltcg_income
+        return Income(ordinary_income, ltcg_income)
 
 
 @dataclasses.dataclass()
