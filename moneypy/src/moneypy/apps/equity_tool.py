@@ -80,8 +80,11 @@ def main():
 
     for year in (2026, 2027):
         print()
-        print(year)
-        print(rts.calculate_tax(Decimal(240_000), isos.values(), year))
+        print(f"Calculating regular tax for {year}")
+        rts.calculate_tax(Decimal(240_000), isos.values(), year)
+        print()
+        print(f"Calculating alternative minimum tax for {year}")
+        amt.calculate_tax(Decimal(240_000), isos.values(), year)
 
     # for year in (2026, 2027):
     #     # Calculate capital gains
