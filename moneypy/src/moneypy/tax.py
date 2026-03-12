@@ -1,10 +1,11 @@
+import abc
 import dataclasses
 import logging
 import typing
 from decimal import Decimal
 
 from .core import VectorTuple, ZERO, to_decimal
-from .securities import IncentiveStockOption, ISODisposition
+from .securities import IncentiveStockOption, ISODisposition, RestrictedStockUnit
 
 _logger = logging.getLogger(__spec__.name)
 
@@ -48,15 +49,15 @@ class Schedule:
     Brackets are sorted by threshold during initialization.
     """
 
-    brackets: typing.List[Bracket]
+    brackets: typing.Sequence[Bracket]
 
     def __post_init__(self):
         """Sort tax brackets once."""
         object.__setattr__(self, "brackets", sorted(self.brackets))
 
-    def apply(self, income: Decimal) -> typing.List[Decimal]:
+    def apply(self, income: Decimal) -> typing.Sequence[Decimal]:
         """Calculate the tax."""
-        bracket_tax: typing.List[Decimal] = []
+        bracket_tax: typing.Sequence[Decimal] = []
 
         lowers = [bracket.threshold for bracket in self.brackets]
         uppers = lowers[1:] + [Decimal("Infinity")]
@@ -68,42 +69,28 @@ class Schedule:
         return bracket_tax
 
 
-@dataclasses.dataclass()
-class RegularTaxSystem:
-    STANDARD_DEDUCTION = Decimal(32200)
-    ORDINARY_INCOME_SCHEDULE = Schedule(
-        [
-            Bracket(Decimal(0), Decimal(0.10)),
-            Bracket(Decimal(24_800), Decimal(0.12)),
-            Bracket(Decimal(100_800), Decimal(0.22)),
-            Bracket(Decimal(211_400), Decimal(0.24)),
-            Bracket(Decimal(403_550), Decimal(0.32)),
-            Bracket(Decimal(512_450), Decimal(0.35)),
-            Bracket(Decimal(768_700), Decimal(0.37)),
-        ]
-    )
-    LTCG_INCOME_SCHEDULE = Schedule(
-        [
-            Bracket(0, 0.0),
-            Bracket(98900, 0.15),
-            Bracket(613700, 0.20),
-        ]
-    )
+class TaxSystem(abc.ABC):
+    def calculate_tax(
+        self,
+        year: int,
+        income: Income,
+        isos: typing.Optional[typing.Sequence[IncentiveStockOption]] = None,
+        rsus: typing.Optional[typing.Sequence[RestrictedStockUnit]] = None,
+        tax_credits: Decimal = ZERO,
+    ):
 
-    def calculate_tax(self, w2_income: Decimal, isos: typing.List[IncentiveStockOption], year: int):
-        income = Income(ordinary=w2_income)
-
-        income += self._process_isos(isos, year)
-        _logger.info(f"Gross Income: {income}.")
-        _logger.info(f"Total Income: $ {sum(income, ZERO):,.2f}.")
+        if isos is not None:
+            income += self._process_isos(isos, year)
+            _logger.info(f"Gross Income: {income}.")
+            _logger.info(f"Total Income: $ {sum(income, ZERO):,.2f}.")
 
         income -= self._calc_deduction(income)
         _logger.info(f"Deducted Income: {income}.")
         _logger.info(f"Deducted Total Income: $ {sum(income, ZERO):,.2f}.")
 
-        ordinary_income_tax = sum(self.ORDINARY_INCOME_SCHEDULE.apply(income.ordinary))
-        ltcg_income_tax = sum(self.LTCG_INCOME_SCHEDULE.apply(income.ordinary + income.ltcg)) - sum(
-            self.LTCG_INCOME_SCHEDULE.apply(income.ordinary)
+        ordinary_income_tax = sum(self.ordinary_income_schedule.apply(income.ordinary))
+        ltcg_income_tax = sum(self.ltcg_income_schedule.apply(income.ordinary + income.ltcg)) - sum(
+            self.ltcg_income_schedule.apply(income.ordinary)
         )
 
         income_tax = ordinary_income_tax + ltcg_income_tax
@@ -113,8 +100,54 @@ class RegularTaxSystem:
 
         return income_tax
 
+    @property
+    @abc.abstractmethod
+    def ordinary_income_schedule(self) -> Schedule:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def ltcg_income_schedule(self) -> Schedule:
+        pass
+
+    @abc.abstractmethod
+    def _process_isos(self, isos: typing.Sequence[IncentiveStockOption], year: int) -> Income:
+        pass
+
+    @abc.abstractmethod
+    def _calc_deduction(self, income: Income) -> Income:
+        pass
+
+
+@dataclasses.dataclass(frozen=True)
+class RegularTaxSystem(TaxSystem):
+    @property
+    def ordinary_income_schedule(self) -> Schedule:
+        return Schedule(
+            [
+                Bracket(Decimal(0), Decimal(0.10)),
+                Bracket(Decimal(24_800), Decimal(0.12)),
+                Bracket(Decimal(100_800), Decimal(0.22)),
+                Bracket(Decimal(211_400), Decimal(0.24)),
+                Bracket(Decimal(403_550), Decimal(0.32)),
+                Bracket(Decimal(512_450), Decimal(0.35)),
+                Bracket(Decimal(768_700), Decimal(0.37)),
+            ]
+        )
+
+    @property
+    def ltcg_income_schedule(self) -> Schedule:
+        return Schedule(
+            [
+                Bracket(0, 0.0),
+                Bracket(98900, 0.15),
+                Bracket(613700, 0.20),
+            ]
+        )
+
     def _calc_deduction(self, income: Income) -> Income:
         """Apply the standard deduction against ordinary income then ltcg_income."""
+        STANDARD_DEDUCTION = Decimal(32200)
 
         # Determine how to apply the standard deduction. It reduces ordinary
         # income and then long-term capital gains. We can use a list of brackets
@@ -124,88 +157,76 @@ class RegularTaxSystem:
                 Bracket(ZERO),
                 Bracket(income.ordinary),
             ]
-        ).apply(self.STANDARD_DEDUCTION)
+        ).apply(STANDARD_DEDUCTION)
 
         return Income(*deduction_schedule)
 
     @staticmethod
-    def _process_isos(
-        isos: typing.List[IncentiveStockOption], year: int
-    ) -> typing.Tuple[Decimal, Decimal]:
+    def _process_isos(isos: typing.Sequence[IncentiveStockOption], year: int) -> Income:
         income = Income()
 
         _logger.info(f"Processing ISOs for tax year {year}.")
         for iso in isos:
-            _logger.debug(f"Processing ISO {iso.uid}")
+            _logger.info(f"Processing ISO {iso.uid}")
             if iso.sale_date is None or iso.sale_date.year != year:
                 continue
 
             if iso.disposition == ISODisposition.DISQUALIFYING:
                 income += Income(iso.net_income)
-                _logger.info(f"Added ${iso.net_income:,.2f} to ordinary income.")
+                _logger.info(f"+${iso.net_income:,.2f} NET_INCOME to OI.")
             if iso.disposition == ISODisposition.QUALIFYING:
                 income += Income(ltcg=iso.net_income)
-                _logger.info(f"Added ${iso.net_income:,.2f} to long-term capital gains.")
+                _logger.info(f"+${iso.net_income:,.2f} NET_INCOME to LTCG.")
 
         return income
 
 
-@dataclasses.dataclass()
-class AlternativeMinimumTaxSystem:
-    MAX_EXEMPTION = Decimal("140_200")
-    PHASEOUT_RATE = Decimal("0.5")
-    PHASEOUT_THRESHOLD = Decimal("1_000_000")
-    ORDINARY_INCOME_SCHEDULE = Schedule(
-        [
-            Bracket(0, 0.26),
-            Bracket(244500, 0.28),
-        ]
-    )
-    LTCG_INCOME_SCHEDULE = Schedule(
-        [
-            Bracket(0, 0.0),
-            Bracket(98900, 0.15),
-            Bracket(613700, 0.20),
-        ]
-    )
-
-    def calculate_tax(self, w2_income: Decimal, isos: typing.List[IncentiveStockOption], year: int):
-        income = Income(ordinary=w2_income)
-
-        income += self._process_isos(isos, year)
-        _logger.info(f"Gross Income: {income}.")
-        _logger.info(f"Total Income: $ {sum(income, ZERO):,.2f}.")
-
-        income -= self._calc_deduction(income)
-        _logger.info(f"Deducted Income: {income}.")
-        _logger.info(f"Deducted Total Income: $ {sum(income, ZERO):,.2f}.")
-
-        ordinary_income_tax = sum(self.ORDINARY_INCOME_SCHEDULE.apply(income.ordinary))
-        ltcg_income_tax = sum(self.LTCG_INCOME_SCHEDULE.apply(income.ordinary + income.ltcg)) - sum(
-            self.LTCG_INCOME_SCHEDULE.apply(income.ordinary)
+@dataclasses.dataclass(frozen=True)
+class AlternativeMinimumTaxSystem(TaxSystem):
+    @property
+    def ordinary_income_schedule(self) -> Schedule:
+        return Schedule(
+            [
+                Bracket(0, 0.26),
+                Bracket(244500, 0.28),
+            ]
         )
 
-        income_tax = ordinary_income_tax + ltcg_income_tax
-
-        _logger.info(f"Total tax: {income_tax:,.2f}")
-        _logger.info(f"Tax rate: {100 * income_tax / sum(income):.2f} %")
-
-        return income_tax
+    @property
+    def ltcg_income_schedule(self) -> Schedule:
+        return Schedule(
+            [
+                Bracket(0, 0.0),
+                Bracket(98900, 0.15),
+                Bracket(613700, 0.20),
+            ]
+        )
 
     def _calc_deduction(self, income: Income) -> Income:
         """Apply the standard deduction against ordinary income then ltcg_income."""
+        MAX_EXEMPTION = Decimal("140_200")
+        PHASEOUT_RATE = Decimal("0.5")
+        PHASEOUT_THRESHOLD = Decimal("1_000_000")
 
-        amount_above_threshold = max(ZERO, income.ordinary - self.PHASEOUT_THRESHOLD)
-        reduction = min(amount_above_threshold * self.PHASEOUT_RATE, self.MAX_EXEMPTION)
+        amount_above_threshold = max(ZERO, sum(income) - PHASEOUT_THRESHOLD)
+        reduction = min(amount_above_threshold * PHASEOUT_RATE, MAX_EXEMPTION)
+        exemption = max(0, MAX_EXEMPTION - reduction)
 
-        _logger.info(f"AMT Exemption: {self.MAX_EXEMPTION - reduction}")
+        exemptions = Income(
+            *Schedule(
+                [
+                    Bracket(ZERO),
+                    Bracket(income.ordinary),
+                ]
+            ).apply(exemption)
+        )
 
-        return Income(self.MAX_EXEMPTION - reduction)
+        _logger.info("AMT Exemption: %s", exemptions)
+
+        return exemptions
 
     @staticmethod
-    def _process_isos(
-        isos: typing.List[IncentiveStockOption], year: int
-    ) -> typing.Tuple[Decimal, Decimal]:
+    def _process_isos(isos: typing.Sequence[IncentiveStockOption], year: int) -> Income:
         income = Income()
 
         _logger.info(f"Processing ISOs for tax year {year}.")
@@ -225,32 +246,30 @@ class AlternativeMinimumTaxSystem:
             # c. disposition using amt_gain
             # d. ordinary income
             #
+            # CASE A:
             # If the ISO has yet to be exercised, there are no tax considerations.
             if iso.exercise_date is None:
                 continue
 
-            # If there is no sale, then increase ordinary income by bargain element (case b)
+            # CASE B:
+            # If there is no sale in the same year, then increase ordinary income by bargain element
             if iso.sale_date is None or iso.sale_date.year != year:
                 if iso.exercise_date.year == year:
                     income += Income(iso.bargain_element)
-                    _logger.info(
-                        f"Added ${iso.bargain_element:,.2f} bargain element to ordinary income."
-                    )
+                    _logger.info(f"+${iso.bargain_element:,.2f} BARGAIN ELEMENT to OI.")
                 continue
 
-            if (iso.sale_date.year == year) and (iso.exercise_date.year) == year:
-                _logger.info(f"Added ${iso.net_income:,.2f} net income to ordinary income.")
+            if iso.sale_date.year == year and iso.exercise_date.year == year:
+                _logger.info(f"+${iso.net_income:,.2f} NET INCOME to OI.")
                 income += Income(iso.net_income)
                 continue
 
             if iso.sale_date.year == year:
                 if iso.disposition == ISODisposition.DISQUALIFYING:
                     income += Income(ordinary=iso.amt_gain)
-                    _logger.info(f"Added ${iso.amt_gain:,.2f} amt gain to ordinary income.")
+                    _logger.info(f"+${iso.amt_gain:,.2f} AMT GAIN to OI.")
                 if iso.disposition == ISODisposition.QUALIFYING:
                     income += Income(ltcg=iso.amt_gain)
-                    _logger.info(
-                        f"Added ${iso.net_income:,.2f} amt gain to long-term capital gains."
-                    )
+                    _logger.info(f"+${iso.amt_gain:,.2f} AMT GAIN to LTCG.")
 
         return income

@@ -9,7 +9,7 @@ import yaml
 from tabulate import tabulate
 
 from moneypy.securities import IncentiveStockOption, ISODisposition, RestrictedStockUnit
-from moneypy.tax import AlternativeMinimumTaxSystem, RegularTaxSystem
+from moneypy.tax import AlternativeMinimumTaxSystem, RegularTaxSystem, Income
 
 
 def main():
