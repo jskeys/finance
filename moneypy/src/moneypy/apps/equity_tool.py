@@ -9,7 +9,7 @@ import yaml
 from tabulate import tabulate
 
 from moneypy.securities import IncentiveStockOption, ISODisposition, RestrictedStockUnit
-from moneypy.tax import AlternativeMinimumTaxSystem, RegularTaxSystem
+from moneypy.tax import AlternativeMinimumTaxSystem, RegularTaxSystem, Income
 
 
 def main():
@@ -81,10 +81,10 @@ def main():
     for year in (2026, 2027):
         print()
         print(f"Calculating regular tax for {year}")
-        rts.calculate_tax(Decimal(240_000), isos.values(), year)
+        rts.calculate_tax(year, Income(Decimal(240_000)), isos.values())
         print()
         print(f"Calculating alternative minimum tax for {year}")
-        amt.calculate_tax(Decimal(240_000), isos.values(), year)
+        amt.calculate_tax(year, Income(Decimal(240_000)), isos.values())
 
     # for year in (2026, 2027):
     #     # Calculate capital gains
