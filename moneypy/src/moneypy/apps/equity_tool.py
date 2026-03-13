@@ -8,7 +8,7 @@ import pandas as pd
 import yaml
 from tabulate import tabulate
 
-from moneypy.securities import IncentiveStockOption, ISODisposition, RestrictedStockUnit
+from moneypy.securities import IncentiveStockOption, RestrictedStockUnit
 from moneypy.tax import AlternativeMinimumTaxSystem, RegularTaxSystem, Income
 
 
@@ -69,9 +69,8 @@ def main():
     RSU_DATE_COLS = ["grant_date", "vest_date", "sale_date"]
     rsu_df = pd.DataFrame(rsus.values())
     rsu_df[RSU_DATE_COLS] = rsu_df[RSU_DATE_COLS].apply(pd.to_datetime, errors="coerce")
-    rsu_df["compensation_income"] = rsu_df.apply(
-        lambda row: rsus[row["uid"]].compensation_income, axis=1
-    )
+    rsu_df["rsu_basis"] = rsu_df.apply(lambda row: rsus[row["uid"]].rsu_basis, axis=1)
+    rsu_df["capital_gain"] = rsu_df.apply(lambda row: rsus[row["uid"]].capital_gain, axis=1)
     print(tabulate(rsu_df, headers=rsu_df.columns, floatfmt=",.2f"))
 
     rts = RegularTaxSystem()
