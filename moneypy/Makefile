@@ -19,7 +19,7 @@ $(build_dir)/.dist: $(py_src) pyproject.toml
 	touch $@
 
 .PHONY: check
-check: format lint typecheck
+check: isort format lint typecheck
 
 .PHONY: format
 format: $(build_dir)/.format
@@ -43,6 +43,12 @@ $(build_dir)/.install: $(py_dir)/pyproject.toml $(py_src) | $(build_dir)
 lint: $(build_dir)/.lint
 $(build_dir)/.lint: $(py_src) .flake8 | $(build_dir)
 	python3 -m flake8 -v --tee --output-file $(build_dir)/flake.log --color never --config .flake8 $(py_src)
+	touch $@
+
+.PHONY: isort
+isort: $(build_dir)/.isort
+$(build_dir)/.isort: $(py_src) .isort.cfg | $(build_dir)
+	isort $(py_src)
 	touch $@
 
 venv:
