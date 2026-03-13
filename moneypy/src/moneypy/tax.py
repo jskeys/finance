@@ -4,7 +4,7 @@ import logging
 import typing
 from decimal import Decimal
 
-from .core import VectorTuple, ZERO, to_decimal
+from .core import VectorTuple, ZERO, to_decimal, ONE_YEAR
 from .securities import IncentiveStockOption, ISODisposition, RestrictedStockUnit
 
 _logger = logging.getLogger(__spec__.name)
@@ -84,9 +84,8 @@ class TaxSystem(abc.ABC):
             _logger.info(f"Gross Income: {income}.")
             _logger.info(f"Total Income: $ {sum(income, ZERO):,.2f}.")
 
-        income -= self._calc_deduction(income)
-        _logger.info(f"Deducted Income: {income}.")
-        _logger.info(f"Deducted Total Income: $ {sum(income, ZERO):,.2f}.")
+        if rsus is not None:
+            income += self._process_rsus(rsus, year)
 
         ordinary_income_tax = sum(self.ordinary_income_schedule.apply(income.ordinary))
         ltcg_income_tax = sum(self.ltcg_income_schedule.apply(income.ordinary + income.ltcg)) - sum(
@@ -117,6 +116,27 @@ class TaxSystem(abc.ABC):
     @abc.abstractmethod
     def _calc_deduction(self, income: Income) -> Income:
         pass
+
+    @staticmethod
+    def _process_rsus(rsus: typing.Sequence[RestrictedStockUnit], year: int) -> Income:
+        income = Income()
+
+        _logger.info(f"Processing RSUs for tax year {year}.")
+        for rsu in rsus:
+            _logger.info(f"Processing RSU {rsu.uid}")
+            if rsu.vest_date.year == year:
+                _logger.info("+$%s RSU BASIS to OI", f"{rsu.rsu_basis:,.2f}")
+                income += Income(ordinary=rsu.rsu_basis)
+
+            if rsu.sale_date and rsu.sale_date.year == year:
+                if rsu.sale_date > rsu.grant_date + ONE_YEAR:
+                    income += Income(ltcg=rsu.capital_gain)
+                    _logger.info("+$%s CAPITAL GAIN to LCTG", f"{rsu.capital_gain:,.2f}")
+                else:
+                    income += Income(ordinary=rsu.capital_gain)
+                    _logger.info("+$%s CAPITAL GAIN to OI", f"{rsu.capital_gain:,.2f}")
+
+        return income
 
 
 @dataclasses.dataclass(frozen=True)
@@ -167,10 +187,10 @@ class RegularTaxSystem(TaxSystem):
 
         _logger.info(f"Processing ISOs for tax year {year}.")
         for iso in isos:
-            _logger.info(f"Processing ISO {iso.uid}")
             if iso.sale_date is None or iso.sale_date.year != year:
                 continue
 
+            _logger.info(f"Processing ISO {iso.uid}")
             if iso.disposition == ISODisposition.DISQUALIFYING:
                 income += Income(iso.net_income)
                 _logger.info(f"+${iso.net_income:,.2f} NET_INCOME to OI.")
@@ -178,6 +198,7 @@ class RegularTaxSystem(TaxSystem):
                 income += Income(ltcg=iso.net_income)
                 _logger.info(f"+${iso.net_income:,.2f} NET_INCOME to LTCG.")
 
+        _logger.info("ISO Income: %s", income)
         return income
 
 

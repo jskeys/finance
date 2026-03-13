@@ -203,12 +203,22 @@ class RestrictedStockUnit:
                 object.__setattr__(self, attr, value)
 
     @property
-    def compensation_income(self) -> Decimal:
+    def rsu_basis(self) -> Decimal:
         """
         Total economic gain (or loss) from exercise to sale.
         """
         if self.vest_fair_market_value is not None:
             return self.vest_fair_market_value * self.num_shares
+
+        return Decimal("NaN")
+
+    @property
+    def capital_gain(self) -> Decimal:
+        """
+        Total economic gain (or loss) from exercise to sale.
+        """
+        if self.sale_date is not None:
+            return (self.sale_price - self.vest_fair_market_value) * self.num_shares
 
         return Decimal("NaN")
 
