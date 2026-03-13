@@ -69,6 +69,12 @@ class Schedule:
         return bracket_tax
 
 
+@dataclasses.dataclass(frozen=True)
+class TaxSummary:
+    income: Decimal
+    tax: Decimal
+
+
 class TaxSystem(abc.ABC):
     def calculate_tax(
         self,
@@ -78,26 +84,27 @@ class TaxSystem(abc.ABC):
         rsus: typing.Optional[typing.Sequence[RestrictedStockUnit]] = None,
         tax_credits: Decimal = ZERO,
     ):
-
+        _logger.info("Calculating %s for %d", type(self).__name__, year)
         if isos is not None:
             income += self._process_isos(isos, year)
-            _logger.info(f"Gross Income: {income}.")
-            _logger.info(f"Total Income: $ {sum(income, ZERO):,.2f}.")
 
         if rsus is not None:
             income += self._process_rsus(rsus, year)
 
-        ordinary_income_tax = sum(self.ordinary_income_schedule.apply(income.ordinary))
-        ltcg_income_tax = sum(self.ltcg_income_schedule.apply(income.ordinary + income.ltcg)) - sum(
-            self.ltcg_income_schedule.apply(income.ordinary)
+        taxable_income = income - self._calc_deduction(income)
+
+        income_tax = Income(
+            sum(self.ordinary_income_schedule.apply(taxable_income.ordinary)),
+            sum(self.ltcg_income_schedule.apply(sum(taxable_income)))
+            - sum(self.ltcg_income_schedule.apply(taxable_income.ordinary)),
         )
 
-        income_tax = ordinary_income_tax + ltcg_income_tax
+        income_tax = sum(income_tax)
 
         _logger.info(f"Total tax: {income_tax:,.2f}")
         _logger.info(f"Tax rate: {100 * income_tax / sum(income):.2f} %")
 
-        return income_tax
+        return TaxSummary(sum(income), income_tax)
 
     @property
     @abc.abstractmethod
