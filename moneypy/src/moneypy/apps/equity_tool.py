@@ -1,4 +1,5 @@
 import argparse
+import itertools
 import logging
 import typing
 from decimal import Decimal
@@ -19,14 +20,15 @@ def main():
     parser.add_argument("ordinary_income", type=Decimal)
     parser.add_argument("iso_fair_market_value", type=Decimal)
     parser.add_argument("rsu_fair_market_value", type=Decimal)
+    parser.add_argument("--log-level", "-l", type=int, default=logging.INFO)
 
     args = parser.parse_args()
 
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s:%(lineno)d - %(message)s"))
+    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s:%(lineno)4d - %(message)s"))
 
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger.setLevel(args.log_level)
     logger.addHandler(handler)
 
     with open(args.equity_path) as iso_file:
@@ -76,86 +78,25 @@ def main():
     rts = RegularTaxSystem()
     amt = AlternativeMinimumTaxSystem()
 
-    summaries = {}
+    dfs = []
 
-    for year in (2026, 2027):
-        print()
-        print(f"Calculating regular tax for {year}")
-        rts.calculate_tax(args.ordinary_income, isos.values(), year)
-        print()
-        print(f"Calculating alternative minimum tax for {year}")
-        amt.calculate_tax(args.ordinary_income, isos.values(), year)
+    for year, system in itertools.product((2026, 2027), (rts, amt)):
+        dfs.append(
+            pd.DataFrame.from_dict(
+                {
+                    (year, type(system).__name__): system.calculate_tax(
+                        year,
+                        Income(args.ordinary_income),
+                        isos.values(),
+                        rsus.values(),
+                    ),
+                },
+                orient="index",
+            )
+        )
 
-    # for year in (2026, 2027):
-    #     # Calculate capital gains
-    #     mask = [True] * len(iso_df)
-    #     mask &= iso_df["sale_date"].apply(lambda x: x.year) == year
-    #     mask &= iso_df["disposition"] == ISODisposition.QUALIFYING
-    #     capital_gains = iso_df[mask]["net_income"].sum()
-
-    #     # Calculate income
-    #     mask = [True] * len(iso_df)
-    #     mask &= iso_df["sale_date"].apply(lambda x: x.year) == year
-    #     mask &= iso_df["disposition"] == ISODisposition.DISQUALIFYING
-    #     income = iso_df[mask]["net_income"].sum()
-
-    #     # Calculate Exercie cost
-    #     mask = [True] * len(iso_df)
-    #     mask &= iso_df["exercise_date"].apply(lambda x: x.year) == year
-    #     exercise_cost = iso_df[mask]["exercise_cost"].sum()
-
-    #     # The bargain element is added toe alternative minimum tax income if the position is not
-    #     # sold that year.
-    #     mask &= iso_df["sale_date"].apply(lambda x: x.year) != year
-    #     bargain_elements = iso_df[mask]["bargain_element"].sum()
-
-    #     # If the year an option is sold is different than the exercise year, then the tax bill may
-    #     # be reduced. The `amt_gain` is added to amt income for non-qualifying dispositions and to
-    #     # long-term capital-gains for qualifying dispositions. Note that this value is the
-    #     # sale-price to fmv spread rather than the sale-price to exercise spread, so the amt tax
-    #     # bill should be lower, which should increase the amount of the credit available for use.
-    #     mask = [True] * len(iso_df)
-    #     mask &= iso_df["exercise_date"].apply(lambda x: x.year) != year
-    #     mask &= iso_df["sale_date"].apply(lambda x: x.year) == year
-    #     mask &= iso_df["disposition"] == ISODisposition.QUALIFYING
-    #     amt_lt_capital_gains = iso_df[mask]["amt_gain"].sum()
-
-    #     mask = [True] * len(iso_df)
-    #     mask &= iso_df["exercise_date"].apply(lambda x: x.year) != year
-    #     mask &= iso_df["sale_date"].apply(lambda x: x.year) == year
-    #     mask &= iso_df["disposition"] == ISODisposition.DISQUALIFYING
-    #     amt_income = iso_df[mask]["amt_gain"].sum()
-
-    #     # Calculate RSU contribution
-    #     mask = [True] * len(rsu_df)
-    #     mask &= rsu_df["vest_date"].apply(lambda x: x.year) == year
-    #     income += rsu_df[mask]["compensation_income"].sum()
-
-    #     income += Decimal(250000)
-
-    #     amt_income += income + bargain_elements
-
-    #     regular_tax = rts.calculate_tax(income, capital_gains)
-    #     amt_tax = amt.calculate_tax(amt_income, capital_gains)
-    #     tax = max(regular_tax, amt_tax)
-
-    #     summary = {
-    #         "iso_exercise_cost": exercise_cost,
-    #         "bargain_elements": bargain_elements,
-    #         "ordinary_income": income,
-    #         "amt_income": amt_income,
-    #         "capital_gains": capital_gains,
-    #         "regular_tax": regular_tax,
-    #         "amt_tax": amt_tax,
-    #         "tax": tax,
-    #         "tax_rate": tax / (income + capital_gains),
-    #         "amt_credit": amt_tax - regular_tax if amt_tax > regular_tax else 0,
-    #     }
-
-    #     summaries[year] = summary
-
-    # summary_df = pd.DataFrame.from_dict(summaries, orient="index")
-    # print(tabulate(summary_df, headers=summary_df.columns, floatfmt=",.2f"))
+    df = pd.concat(dfs)
+    print(tabulate(df, headers=df.columns, floatfmt=",.2f"))
 
 
 if __name__ == "__main__":
