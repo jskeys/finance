@@ -4,7 +4,7 @@ import logging
 import typing
 from decimal import Decimal
 
-from .core import VectorTuple, ZERO, to_decimal, ONE_YEAR
+from .core import ONE_YEAR, ZERO, VectorTuple, to_decimal
 from .securities import IncentiveStockOption, ISODisposition, RestrictedStockUnit
 
 _logger = logging.getLogger(__spec__.name)

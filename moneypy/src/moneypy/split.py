@@ -1,13 +1,14 @@
 """A simple application for calculating shared expense account balances."""
 
 import logging
-import pandas as pd
 import uuid
-import yaml
-
 from decimal import Decimal
 from typing import Tuple
-from .accounting import Account, Entry, Transaction, CURRENCY_EPSILON, ROUNDING_STRATEGY
+
+import pandas as pd
+import yaml
+
+from .accounting import CURRENCY_EPSILON, ROUNDING_STRATEGY, Account, Entry, Transaction
 
 _logger = logging.getLogger(__name__)
 

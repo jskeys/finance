@@ -13,9 +13,8 @@ for use as the foundational layer of an expense-tracking or accounting system.
 import dataclasses
 import datetime
 import uuid
-
+from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Optional, Tuple
-from decimal import Decimal, ROUND_HALF_EVEN
 
 SECONDS_PER_YEAR: float = 31536000
 CURRENCY_EPSILON = Decimal("1.00")
