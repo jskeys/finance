@@ -18,7 +18,7 @@ from typing import Optional, Tuple
 
 from .core import to_decimal
 
-SECONDS_PER_YEAR: float = 31536000
+SECONDS_PER_YEAR: float = 31_536_000
 CURRENCY_EPSILON = Decimal("1.00")
 ROUNDING_STRATEGY = ROUND_HALF_EVEN
 
@@ -63,8 +63,8 @@ class Entry:
         amount: Signed monetary amount applied to the account.
 
             Convention:
-                amount > 0  → credit
-                amount < 0  → debit
+                amount > 0  → debit
+                amount < 0  → credit
 
     Notes:
         - Entries are immutable once created.
