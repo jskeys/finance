@@ -1,5 +1,8 @@
 import argparse
 import dataclasses
+import datetime
+import dateutil
+import dateutil.rrule
 import itertools
 import logging
 import typing
@@ -13,6 +16,81 @@ from dateutil.relativedelta import relativedelta
 
 from moneypy.securities import IncentiveStockOption, import_isos_from_yaml
 from moneypy.tax import AlternativeMinimumTaxSystem, Income, RegularTaxSystem
+
+cash_accont = Account(uuid.uuid4(), "cash")
+stock_accont = Account(uuid.uuid4(), "stock")
+capital_gain_account = Account(uuid.uuid4(), "capital_gain")
+
+from decimal import Decimal
+
+
+@dataclasses.dataclass(frozen=True)
+class TransactionSimulator:
+    """Simulates cash flows."""
+
+    def simulate(self):
+        pass
+
+    def _process_isos(self, isos: typing.Sequence[IncentiveStockOption]):
+        """Calculate cash flows associated with ISO transactions."""
+
+        transactions: typing.List[Transaction] = []
+
+        for iso in isos:
+            if iso.exercise_date:
+                transaction_uid = uuid.uuid4()
+                transactions.append(
+                    Transaction(
+                        uid=transaction_uid,
+                        entries=(
+                            Entry(
+                                account_uid=cash_accont.uid,
+                                uid=uuid.uuid4(),
+                                transaction_uid=transaction_uid,
+                                amount=-iso.exercise_cost,
+                            ),
+                            Entry(
+                                account_uid=stock_accont.uid,
+                                uid=uuid.uuid4(),
+                                transaction_uid=transaction_uid,
+                                amount=iso.exercise_cost,
+                            ),
+                        ),
+                        description=f"EXERCISE: {iso.uid}",
+                        timestamp=iso.exercise_date,
+                    )
+                )
+            if iso.sale_date:
+                transaction_uid = uuid.uuid4()
+                transactions.append(
+                    Transaction(
+                        uid=transaction_uid,
+                        entries=(
+                            Entry(
+                                account_uid=cash_accont.uid,
+                                uid=uuid.uuid4(),
+                                transaction_uid=transaction_uid,
+                                amount=iso.proceeds,
+                            ),
+                            Entry(
+                                account_uid=stock_accont.uid,
+                                uid=uuid.uuid4(),
+                                transaction_uid=transaction_uid,
+                                amount=-iso.exercise_cost,
+                            ),
+                            Entry(
+                                account_uid=capital_gain_account.uid,
+                                uid=uuid.uuid4(),
+                                transaction_uid=transaction_uid,
+                                amount=-iso.net_income,
+                            ),
+                        ),
+                        description=f"SALE: {iso.uid}",
+                        timestamp=iso.exercise_date,
+                    )
+                )
+
+        return transactions
 
 
 class ExerciseStrategy(IntEnum):
