@@ -113,7 +113,7 @@ class IncentiveStockOption:
         self,
         date: date,
         fair_market_value: Decimal,
-        num_shares: typing.Optional[int],
+        num_shares: typing.Optional[int] = None,
     ) -> typing.List["IncentiveStockOption"]:
         """Exercise `num_shares` shares.
 
@@ -154,7 +154,7 @@ class IncentiveStockOption:
         self,
         date: date,
         price: Decimal,
-        num_shares: typing.Optional[int],
+        num_shares: typing.Optional[int] = None,
     ) -> typing.List["IncentiveStockOption"]:
         """Exercise `num_shares` shares.
 
@@ -197,7 +197,7 @@ class RestrictedStockUnit:
     uid: str
     num_shares: int
     grant_date: date
-    vest_date: typing.Optional[date] = None
+    vest_date: date
     vest_fair_market_value: typing.Optional[Decimal] = None
     sale_price: typing.Optional[Decimal] = None
     sale_date: typing.Optional[date] = None
@@ -224,7 +224,11 @@ class RestrictedStockUnit:
         """
         Total economic gain (or loss) from exercise to sale.
         """
-        if self.sale_date is not None:
+        if (
+            self.sale_date is not None
+            and self.sale_price is not None
+            and self.vest_fair_market_value is not None
+        ):
             return (self.sale_price - self.vest_fair_market_value) * self.num_shares
 
         return Decimal("NaN")
