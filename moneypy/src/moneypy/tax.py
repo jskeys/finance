@@ -7,7 +7,7 @@ from decimal import Decimal
 from .core import ONE_YEAR, ZERO, VectorTuple, to_decimal
 from .securities import IncentiveStockOption, ISODisposition, RestrictedStockUnit
 
-_logger = logging.getLogger(__spec__.name)
+_logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -96,12 +96,12 @@ class TaxSystem(abc.ABC):
         taxable_income = income - self._calc_deduction(income)
 
         income_tax = Income(
-            sum(self.ordinary_income_schedule.apply(taxable_income.ordinary)),
-            sum(self.ltcg_income_schedule.apply(sum(taxable_income)))
-            - sum(self.ltcg_income_schedule.apply(taxable_income.ordinary)),
+            sum(self.ordinary_income_schedule.apply(taxable_income.ordinary), ZERO),
+            sum(self.ltcg_income_schedule.apply(sum(taxable_income)), ZERO)
+            - sum(self.ltcg_income_schedule.apply(taxable_income.ordinary), ZERO),
         )
 
-        income_tax = sum(income_tax)
+        income_tax = sum(income_tax, ZERO)
 
         _logger.info(f"Total tax: {income_tax:,.2f}")
         _logger.info(f"Tax rate: {100 * income_tax / sum(income):.2f} %")
@@ -123,8 +123,9 @@ class TaxSystem(abc.ABC):
     def ltcg_income_schedule(self) -> Schedule:
         pass
 
+    @staticmethod
     @abc.abstractmethod
-    def _process_isos(self, isos: typing.Sequence[IncentiveStockOption], year: int) -> Income:
+    def _process_isos(isos: typing.Sequence[IncentiveStockOption], year: int) -> Income:
         pass
 
     @abc.abstractmethod
@@ -159,7 +160,7 @@ class RegularTaxSystem(TaxSystem):
     def ordinary_income_schedule(self) -> Schedule:
         return Schedule(
             [
-                Bracket(Decimal(0), Decimal(0.10)),
+                Bracket(ZERO, Decimal(0.10)),
                 Bracket(Decimal(24_800), Decimal(0.12)),
                 Bracket(Decimal(100_800), Decimal(0.22)),
                 Bracket(Decimal(211_400), Decimal(0.24)),
@@ -177,9 +178,9 @@ class RegularTaxSystem(TaxSystem):
     def ltcg_income_schedule(self) -> Schedule:
         return Schedule(
             [
-                Bracket(0, 0.0),
-                Bracket(98900, 0.15),
-                Bracket(613700, 0.20),
+                Bracket(ZERO, ZERO),
+                Bracket(Decimal(8_900), Decimal(0.15)),
+                Bracket(Decimal(13_700), Decimal(0.20)),
             ]
         )
 
@@ -230,8 +231,8 @@ class AlternativeMinimumTaxSystem(TaxSystem):
     def ordinary_income_schedule(self) -> Schedule:
         return Schedule(
             [
-                Bracket(0, 0.26),
-                Bracket(244500, 0.28),
+                Bracket(ZERO, Decimal(0.26)),
+                Bracket(Decimal(244500), Decimal(0.28)),
             ]
         )
 
@@ -239,9 +240,9 @@ class AlternativeMinimumTaxSystem(TaxSystem):
     def ltcg_income_schedule(self) -> Schedule:
         return Schedule(
             [
-                Bracket(0, 0.0),
-                Bracket(98900, 0.15),
-                Bracket(613700, 0.20),
+                Bracket(ZERO, ZERO),
+                Bracket(Decimal(98900), Decimal(0.15)),
+                Bracket(Decimal(613700), Decimal(0.20)),
             ]
         )
 
@@ -253,7 +254,7 @@ class AlternativeMinimumTaxSystem(TaxSystem):
 
         amount_above_threshold = max(ZERO, sum(income) - PHASEOUT_THRESHOLD)
         reduction = min(amount_above_threshold * PHASEOUT_RATE, MAX_EXEMPTION)
-        exemption = max(0, MAX_EXEMPTION - reduction)
+        exemption = max(ZERO, MAX_EXEMPTION - reduction)
 
         exemptions = Income(
             *Schedule(
