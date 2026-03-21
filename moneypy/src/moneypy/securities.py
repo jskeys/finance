@@ -1,10 +1,17 @@
 import dataclasses
 import enum
+import logging
 import typing
 from datetime import date
 from decimal import Decimal
+from typing import Optional
 
-from .core import ONE_YEAR, ZERO, DecimalLike, to_decimal
+import dacite
+import yaml
+
+from .core import ONE_YEAR, ZERO, to_decimal
+
+_logger = logging.getLogger(__name__)
 
 
 class ISODisposition(enum.Enum):
@@ -221,6 +228,30 @@ class RestrictedStockUnit:
             return (self.sale_price - self.vest_fair_market_value) * self.num_shares
 
         return Decimal("NaN")
+
+
+def import_isos_from_yaml(path: str, default_fmv: Decimal):
+
+    with open(path) as iso_file:
+        equity_dict = yaml.safe_load(iso_file)
+        _logger.info(f"Loaded equity summary from `{path}`.")
+
+    isos: typing.List[IncentiveStockOption] = []
+
+    for equity in equity_dict:
+        equity_class = equity.pop("class")
+        if "fair_market_value" not in equity:
+            equity["fair_market_value"] = default_fmv
+        if equity_class == "ISO":
+            isos.append(
+                dacite.from_dict(
+                    IncentiveStockOption,
+                    equity,
+                    config=dacite.Config(type_hooks={Decimal: Decimal}),
+                )
+            )
+
+    return isos
 
 
 if __name__ == "__main__":
