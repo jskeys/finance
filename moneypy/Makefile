@@ -30,7 +30,7 @@ $(build_dir)/.format: $(py_src) | $(build_dir)
 .PHONY: typecheck
 typecheck: $(build_dir)/.typecheck
 $(build_dir)/.typecheck: $(py_src) | $(build_dir)
-	python3 -m mypy $(py_dir)/src --config-file=$(py_dir)/mypy.ini
+	ty check $(py_dir)/src
 	touch $@
 
 .PHONY: install
