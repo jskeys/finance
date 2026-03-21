@@ -71,6 +71,8 @@ class Schedule:
 
 @dataclasses.dataclass(frozen=True)
 class TaxSummary:
+    system: str
+    year: int
     income: Decimal
     tax: Decimal
 
@@ -104,7 +106,12 @@ class TaxSystem(abc.ABC):
         _logger.info(f"Total tax: {income_tax:,.2f}")
         _logger.info(f"Tax rate: {100 * income_tax / sum(income):.2f} %")
 
-        return TaxSummary(sum(income), income_tax)
+        return TaxSummary(self.name, year, sum(income), income_tax)
+
+    @property
+    @abc.abstractmethod
+    def name(self) -> str:
+        pass
 
     @property
     @abc.abstractmethod
@@ -163,6 +170,10 @@ class RegularTaxSystem(TaxSystem):
         )
 
     @property
+    def name(self) -> str:
+        return "regular_tax"
+
+    @property
     def ltcg_income_schedule(self) -> Schedule:
         return Schedule(
             [
@@ -211,6 +222,10 @@ class RegularTaxSystem(TaxSystem):
 
 @dataclasses.dataclass(frozen=True)
 class AlternativeMinimumTaxSystem(TaxSystem):
+    @property
+    def name(self) -> str:
+        return "alternative_minimum_tax"
+
     @property
     def ordinary_income_schedule(self) -> Schedule:
         return Schedule(
