@@ -1,4 +1,5 @@
 import argparse
+import dataclasses
 import itertools
 import logging
 import typing
@@ -56,7 +57,8 @@ def main():
 
     DATE_COLS = ["grant_date", "exercise_date", "sale_date"]
 
-    iso_df = pd.DataFrame(isos.values())
+    iso_df = pd.DataFrame(dataclasses.asdict(iso) for iso in isos.values())
+
     iso_df[DATE_COLS] = iso_df[DATE_COLS].apply(pd.to_datetime, errors="coerce")
     iso_df["bargain_element"] = iso_df.apply(lambda row: isos[row["uid"]].bargain_element, axis=1)
     iso_df["exercise_cost"] = iso_df.apply(lambda row: isos[row["uid"]].exercise_cost, axis=1)
@@ -68,7 +70,7 @@ def main():
     print()
 
     RSU_DATE_COLS = ["grant_date", "vest_date", "sale_date"]
-    rsu_df = pd.DataFrame(rsus.values())
+    rsu_df = pd.DataFrame(dataclasses.asdict(rsu) for rsu in rsus.values())
     rsu_df[RSU_DATE_COLS] = rsu_df[RSU_DATE_COLS].apply(pd.to_datetime, errors="coerce")
     rsu_df["rsu_basis"] = rsu_df.apply(lambda row: rsus[row["uid"]].rsu_basis, axis=1)
     rsu_df["capital_gain"] = rsu_df.apply(lambda row: rsus[row["uid"]].capital_gain, axis=1)
