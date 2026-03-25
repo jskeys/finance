@@ -3,6 +3,7 @@ build_dir=./build
 py_dir=${CURDIR}
 py_src_dir=$(py_dir)/src
 py_dist=$(build_dir)/dist
+py_test=$(py_dir)/test
 py_version=$(py_src_dir)/version.py
 
 py_src=$(shell find $(py_src_dir) -name "*.py")
@@ -49,6 +50,12 @@ $(build_dir)/.lint: $(py_src) .flake8 | $(build_dir)
 isort: $(build_dir)/.isort
 $(build_dir)/.isort: $(py_src) .isort.cfg | $(build_dir)
 	isort $(py_src)
+	touch $@
+
+.PHONY: test
+test: $(build_dir)/.test
+$(build_dir)/.test: $(py_src) $(py_test) | $(build_dir)
+	pytest -v
 	touch $@
 
 venv:
