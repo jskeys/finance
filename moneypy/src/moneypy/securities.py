@@ -260,7 +260,7 @@ class RestrictedStockUnit:
         return Decimal("NaN")
 
 
-def import_isos_from_yaml(path: str, default_fmv: Decimal):
+def import_isos_from_yaml(path: str) -> typing.List[IncentiveStockOption]:
 
     with open(path) as iso_file:
         equity_dict = yaml.safe_load(iso_file)
@@ -269,10 +269,8 @@ def import_isos_from_yaml(path: str, default_fmv: Decimal):
     isos: typing.List[IncentiveStockOption] = []
 
     for equity in equity_dict:
-        equity_class = equity.pop("class")
-        if "fair_market_value" not in equity:
-            equity["fair_market_value"] = default_fmv
-        if equity_class == "ISO":
+        if equity.pop("class") == "ISO":
+            _logger.info(f"Reading ISO `{equity['uid']}`.")
             isos.append(
                 dacite.from_dict(
                     IncentiveStockOption,
@@ -282,6 +280,28 @@ def import_isos_from_yaml(path: str, default_fmv: Decimal):
             )
 
     return isos
+
+
+def import_rsus_from_yaml(path: str) -> typing.List[RestrictedStockUnit]:
+
+    with open(path) as rsu_file:
+        equity_dict = yaml.safe_load(rsu_file)
+        _logger.info(f"Loaded equity summary from `{path}`.")
+
+    rsus: typing.List[RestrictedStockUnit] = []
+
+    for equity in equity_dict:
+        if equity.pop("class") == "RSU":
+            _logger.info(f"Reading RSU `{equity['uid']}`.")
+            rsus.append(
+                dacite.from_dict(
+                    RestrictedStockUnit,
+                    equity,
+                    config=dacite.Config(type_hooks={Decimal: Decimal}),
+                )
+            )
+
+    return rsus
 
 
 if __name__ == "__main__":
