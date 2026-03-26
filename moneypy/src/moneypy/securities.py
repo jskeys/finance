@@ -4,7 +4,6 @@ import logging
 import typing
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 import dacite
 import yaml
@@ -132,11 +131,16 @@ class IncentiveStockOption:
                 )
             ]
 
-        # Split the option into an exercised and non-exercised part. Keep the `uid`, `grant_date`,
-        # `num_shares`, and `exercise_price` constant.
-        if num_shares <= 0:
+        # Allow this to make life easier on clients.
+        if num_shares == 0:
+            _logger.info(f"Requested to exercise 0 shares from ISO {self.uid}.")
+            return [dataclasses.replace(self)]
+
+        if num_shares < 0:
             raise ValueError("Must exercise more than zero shares.")
 
+        # Split the option into an exercised and non-exercised instances. Keep the `uid`, `grant_date`,
+        # `num_shares`, and `exercise_price` constant.
         return [
             dataclasses.replace(
                 self,
@@ -156,9 +160,10 @@ class IncentiveStockOption:
         price: Decimal,
         num_shares: typing.Optional[int] = None,
     ) -> typing.List["IncentiveStockOption"]:
-        """Exercise `num_shares` shares.
+        """Sell `num_shares` shares.
 
-        If `None`, all shares are exercised. If
+        Pass `num_shares=None` (default) to sell all shares.
+
 
         """
         if self.sale_date is not None:
@@ -173,10 +178,14 @@ class IncentiveStockOption:
                 )
             ]
 
-        if num_shares <= 0:
-            raise ValueError("Must sell more than zero shares.")
+        if num_shares == 0:
+            _logger.info(f"Requested to sell 0 shares from ISO {self.uid}.")
+            return [dataclasses.replace(self)]
 
-        # Split the option into an exercised and non-exercised part. Keep the `uid`, `grant_date`,
+        if num_shares < 0:
+            raise ValueError("Must sell zero or more shares.")
+
+        # Split the option into an sold and non-sold instances. Keep the `uid`, `grant_date`,
         # `num_shares`, and `exercise_price` constant.
         return [
             dataclasses.replace(
