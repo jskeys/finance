@@ -295,8 +295,10 @@ class AlternativeMinimumTaxSystem(TaxSystem):
 
             if iso.sale_date.year == year:
                 if iso.disposition == ISODisposition.DISQUALIFYING:
-                    income += Income(ordinary=iso.amt_gain)
-                    _logger.info(f"+${iso.amt_gain:,.2f} AMT GAIN to OI.")
+                    income -= Income(ordinary=iso.bargain_element)
+                    _logger.info(f"-${iso.bargain_element:,.2f} BARGAIN ELEMENT to OI.")
+                    income += Income(ordinary=iso.net_income)
+                    _logger.info(f"+${iso.net_income:,.2f} NET GAIN to OI.")
                 if iso.disposition == ISODisposition.QUALIFYING:
                     income += Income(ltcg=iso.amt_gain)
                     _logger.info(f"+${iso.amt_gain:,.2f} AMT GAIN to LTCG.")
