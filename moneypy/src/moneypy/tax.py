@@ -119,9 +119,14 @@ class TaxSystem(abc.ABC):
         pass
 
     @property
-    @abc.abstractmethod
     def ltcg_income_schedule(self) -> Schedule:
-        pass
+        return Schedule(
+            [
+                Bracket(ZERO, ZERO),
+                Bracket(Decimal(98_900), Decimal(0.15)),
+                Bracket(Decimal(613_700), Decimal(0.20)),
+            ]
+        )
 
     @staticmethod
     @abc.abstractmethod
@@ -174,16 +179,6 @@ class RegularTaxSystem(TaxSystem):
     def name(self) -> str:
         return "regular_tax"
 
-    @property
-    def ltcg_income_schedule(self) -> Schedule:
-        return Schedule(
-            [
-                Bracket(ZERO, ZERO),
-                Bracket(Decimal(8_900), Decimal(0.15)),
-                Bracket(Decimal(13_700), Decimal(0.20)),
-            ]
-        )
-
     def _calc_deduction(self, income: Income) -> Income:
         """Apply the standard deduction against ordinary income then ltcg_income."""
         STANDARD_DEDUCTION = Decimal(32200)
@@ -233,16 +228,6 @@ class AlternativeMinimumTaxSystem(TaxSystem):
             [
                 Bracket(ZERO, Decimal(0.26)),
                 Bracket(Decimal(244500), Decimal(0.28)),
-            ]
-        )
-
-    @property
-    def ltcg_income_schedule(self) -> Schedule:
-        return Schedule(
-            [
-                Bracket(ZERO, ZERO),
-                Bracket(Decimal(98900), Decimal(0.15)),
-                Bracket(Decimal(613700), Decimal(0.20)),
             ]
         )
 
