@@ -144,7 +144,7 @@ class TaxSystem(abc.ABC):
                 income += Income(ordinary=rsu.rsu_basis)
 
             if rsu.sale_date and rsu.sale_date.year == year:
-                if rsu.sale_date > rsu.grant_date + ONE_YEAR:
+                if rsu.sale_date > rsu.vest_date + ONE_YEAR:
                     income += Income(ltcg=rsu.capital_gain)
                     _logger.info("+$%s CAPITAL GAIN to LCTG", f"{rsu.capital_gain:,.2f}")
                 else:
