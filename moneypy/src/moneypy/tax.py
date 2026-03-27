@@ -119,9 +119,14 @@ class TaxSystem(abc.ABC):
         pass
 
     @property
-    @abc.abstractmethod
     def ltcg_income_schedule(self) -> Schedule:
-        pass
+        return Schedule(
+            [
+                Bracket(ZERO, ZERO),
+                Bracket(Decimal(98_900), Decimal(0.15)),
+                Bracket(Decimal(613_700), Decimal(0.20)),
+            ]
+        )
 
     @staticmethod
     @abc.abstractmethod
@@ -144,7 +149,7 @@ class TaxSystem(abc.ABC):
                 income += Income(ordinary=rsu.rsu_basis)
 
             if rsu.sale_date and rsu.sale_date.year == year:
-                if rsu.sale_date > rsu.grant_date + ONE_YEAR:
+                if rsu.sale_date > rsu.vest_date + ONE_YEAR:
                     income += Income(ltcg=rsu.capital_gain)
                     _logger.info("+$%s CAPITAL GAIN to LCTG", f"{rsu.capital_gain:,.2f}")
                 else:
@@ -173,16 +178,6 @@ class RegularTaxSystem(TaxSystem):
     @property
     def name(self) -> str:
         return "regular_tax"
-
-    @property
-    def ltcg_income_schedule(self) -> Schedule:
-        return Schedule(
-            [
-                Bracket(ZERO, ZERO),
-                Bracket(Decimal(8_900), Decimal(0.15)),
-                Bracket(Decimal(13_700), Decimal(0.20)),
-            ]
-        )
 
     def _calc_deduction(self, income: Income) -> Income:
         """Apply the standard deduction against ordinary income then ltcg_income."""
@@ -233,16 +228,6 @@ class AlternativeMinimumTaxSystem(TaxSystem):
             [
                 Bracket(ZERO, Decimal(0.26)),
                 Bracket(Decimal(244500), Decimal(0.28)),
-            ]
-        )
-
-    @property
-    def ltcg_income_schedule(self) -> Schedule:
-        return Schedule(
-            [
-                Bracket(ZERO, ZERO),
-                Bracket(Decimal(98900), Decimal(0.15)),
-                Bracket(Decimal(613700), Decimal(0.20)),
             ]
         )
 
@@ -310,8 +295,10 @@ class AlternativeMinimumTaxSystem(TaxSystem):
 
             if iso.sale_date.year == year:
                 if iso.disposition == ISODisposition.DISQUALIFYING:
-                    income += Income(ordinary=iso.amt_gain)
-                    _logger.info(f"+${iso.amt_gain:,.2f} AMT GAIN to OI.")
+                    income -= Income(ordinary=iso.bargain_element)
+                    _logger.info(f"-${iso.bargain_element:,.2f} BARGAIN ELEMENT to OI.")
+                    income += Income(ordinary=iso.net_income)
+                    _logger.info(f"+${iso.net_income:,.2f} NET GAIN to OI.")
                 if iso.disposition == ISODisposition.QUALIFYING:
                     income += Income(ltcg=iso.amt_gain)
                     _logger.info(f"+${iso.amt_gain:,.2f} AMT GAIN to LTCG.")
