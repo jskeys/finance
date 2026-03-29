@@ -4,7 +4,6 @@ import logging
 import typing
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 import dacite
 import yaml
@@ -114,7 +113,10 @@ class IncentiveStockOption:
         date: date,
         fair_market_value: Decimal,
         num_shares: typing.Optional[int] = None,
-    ) -> typing.List["IncentiveStockOption"]:
+    ) -> typing.Tuple[
+        typing.Optional["IncentiveStockOption"],
+        typing.Optional["IncentiveStockOption"],
+    ]:
         """Exercise `num_shares` shares.
 
         If `None`, all shares are exercised. If
@@ -123,62 +125,86 @@ class IncentiveStockOption:
         if self.exercise_date is not None:
             raise ValueError(f"Option {self.uid} is already exercised.")
 
+        if num_shares > self.num_shares:
+            raise ValueError("Cannot exercise more shares than ISO has.")
+
+        # All shares are exercised. There is nothing left to return.
         if (num_shares is None) or (num_shares == self.num_shares):
-            return [
+            return (
                 dataclasses.replace(
                     self,
                     exercise_date=date,
                     fair_market_value=fair_market_value,
-                )
-            ]
+                ),
+                None,
+            )
 
-        # Split the option into an exercised and non-exercised part. Keep the `uid`, `grant_date`,
-        # `num_shares`, and `exercise_price` constant.
-        if num_shares <= 0:
+        # Allow this to make life easier on clients.
+        if num_shares == 0:
+            _logger.info(f"Requested to exercise 0 shares from ISO {self.uid}.")
+            return (
+                None,
+                dataclasses.replace(self),
+            )
+
+        if num_shares < 0:
             raise ValueError("Must exercise more than zero shares.")
 
-        return [
+        # Split the option into an exercised and non-exercised instances. Keep the `uid`, `grant_date`,
+        # `num_shares`, and `exercise_price` constant.
+        return (
+            # What was exercised
             dataclasses.replace(
                 self,
                 num_shares=num_shares,
                 exercise_date=date,
                 fair_market_value=fair_market_value,
             ),
+            # What is left
             dataclasses.replace(
                 self,
                 num_shares=self.num_shares - num_shares,
             ),
-        ]
+        )
 
     def sell(
         self,
         date: date,
         price: Decimal,
         num_shares: typing.Optional[int] = None,
-    ) -> typing.List["IncentiveStockOption"]:
-        """Exercise `num_shares` shares.
+    ) -> typing.Tuple[
+        typing.Optional["IncentiveStockOption"],
+        typing.Optional["IncentiveStockOption"],
+    ]:
+        """Sell `num_shares` shares.
 
-        If `None`, all shares are exercised. If
+        Pass `num_shares=None` (default) to sell all shares.
+
 
         """
         if self.sale_date is not None:
             raise ValueError(f"Option {self.uid} is already sold.")
 
         if (num_shares is None) or (num_shares == self.num_shares):
-            return [
+            return (
                 dataclasses.replace(
                     self,
                     sale_date=date,
                     sale_price=price,
-                )
-            ]
+                ),
+                None,
+            )
 
-        if num_shares <= 0:
-            raise ValueError("Must sell more than zero shares.")
+        if num_shares == 0:
+            _logger.info(f"Requested to sell 0 shares from ISO {self.uid}.")
+            return (None, dataclasses.replace(self))
 
-        # Split the option into an exercised and non-exercised part. Keep the `uid`, `grant_date`,
+        if num_shares < 0:
+            raise ValueError("Must sell zero or more shares.")
+
+        # Split the option into an sold and non-sold instances. Keep the `uid`, `grant_date`,
         # `num_shares`, and `exercise_price` constant.
-        return [
+        return (
             dataclasses.replace(
                 self,
                 num_shares=num_shares,
@@ -189,7 +215,7 @@ class IncentiveStockOption:
                 self,
                 num_shares=self.num_shares - num_shares,
             ),
-        ]
+        )
 
 
 @dataclasses.dataclass(frozen=True)
