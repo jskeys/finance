@@ -24,7 +24,7 @@ class IncentiveStockOption:
     uid: str
     num_shares: int
     grant_date: date
-    exercise_price: Decimal
+    strike_price: Decimal
     exercise_date: typing.Optional[date] = None
     fair_market_value: typing.Optional[Decimal] = None
     sale_date: typing.Optional[date] = None
@@ -41,7 +41,7 @@ class IncentiveStockOption:
         if self.sale_date is not None and self.exercise_date is None:
             raise ValueError("Cannot set `sale_date` without setting `exercise_date`")
 
-        for attr in ("fair_market_value", "exercise_price", "sale_price"):
+        for attr in ("fair_market_value", "strike_price", "sale_price"):
             if getattr(self, attr) is not None:
                 value = to_decimal(getattr(self, attr))
                 object.__setattr__(self, attr, value)
@@ -50,7 +50,7 @@ class IncentiveStockOption:
     def bargain_element(self) -> Decimal:
         """Spread at exercise (AMT bargain element)."""
         if self.fair_market_value is not None:
-            return max(ZERO, self.fair_market_value - self.exercise_price) * self.num_shares
+            return max(ZERO, self.fair_market_value - self.strike_price) * self.num_shares
 
         return Decimal("NaN")
 
@@ -59,7 +59,7 @@ class IncentiveStockOption:
         """
         Spread at exercise (AMT bargain element).
         """
-        return self.exercise_price * self.num_shares
+        return self.strike_price * self.num_shares
 
     @property
     def net_income(self) -> Decimal:
@@ -67,7 +67,7 @@ class IncentiveStockOption:
         Total economic gain (or loss) from exercise to sale.
         """
         if self.sale_price is not None:
-            return (self.sale_price - self.exercise_price) * self.num_shares
+            return (self.sale_price - self.strike_price) * self.num_shares
 
         return Decimal("NaN")
 
@@ -151,7 +151,7 @@ class IncentiveStockOption:
             raise ValueError("Must exercise more than zero shares.")
 
         # Split the option into an exercised and non-exercised instances. Keep the `uid`, `grant_date`,
-        # `num_shares`, and `exercise_price` constant.
+        # `num_shares`, and `strike_price` constant.
         return (
             # What was exercised
             dataclasses.replace(
@@ -203,7 +203,7 @@ class IncentiveStockOption:
             raise ValueError("Must sell zero or more shares.")
 
         # Split the option into an sold and non-sold instances. Keep the `uid`, `grant_date`,
-        # `num_shares`, and `exercise_price` constant.
+        # `num_shares`, and `strike_price` constant.
         return (
             dataclasses.replace(
                 self,
