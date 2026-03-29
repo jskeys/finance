@@ -284,8 +284,8 @@ class AlternativeMinimumTaxSystem(TaxSystem):
             # If there is no sale in the same year, then increase ordinary income by bargain element
             if iso.sale_date is None or iso.sale_date.year != year:
                 if iso.exercise_date.year == year:
-                    income += Income(iso.bargain_element)
-                    _logger.info(f"+${iso.bargain_element:,.2f} BARGAIN ELEMENT to OI.")
+                    income += Income(iso.exercise_gain)
+                    _logger.info(f"+${iso.exercise_gain:,.2f} EXERCISE GAIN to OI.")
                 continue
 
             if iso.sale_date.year == year and iso.exercise_date.year == year:
@@ -295,8 +295,8 @@ class AlternativeMinimumTaxSystem(TaxSystem):
 
             if iso.sale_date.year == year:
                 if iso.disposition == ISODisposition.DISQUALIFYING:
-                    income -= Income(ordinary=iso.bargain_element)
-                    _logger.info(f"-${iso.bargain_element:,.2f} BARGAIN ELEMENT to OI.")
+                    income -= Income(ordinary=iso.exercise_gain)
+                    _logger.info(f"-${iso.exercise_gain:,.2f} EXERCISE GAIN to OI.")
                     income += Income(ordinary=iso.realized_gain)
                     _logger.info(f"+${iso.realized_gain:,.2f} NET GAIN to OI.")
                 if iso.disposition == ISODisposition.QUALIFYING:

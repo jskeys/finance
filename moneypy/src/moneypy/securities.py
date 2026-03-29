@@ -47,7 +47,7 @@ class IncentiveStockOption:
                 object.__setattr__(self, attr, value)
 
     @property
-    def bargain_element(self) -> Decimal:
+    def exercise_gain(self) -> Decimal:
         """Spread at exercise (AMT bargain element)."""
         if self.fair_market_value is not None:
             return max(ZERO, self.fair_market_value - self.strike_price) * self.num_shares
