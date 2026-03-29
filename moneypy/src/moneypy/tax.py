@@ -206,11 +206,11 @@ class RegularTaxSystem(TaxSystem):
 
             _logger.info(f"Processing ISO {iso.uid}")
             if iso.disposition == ISODisposition.DISQUALIFYING:
-                income += Income(iso.net_income)
-                _logger.info(f"+${iso.net_income:,.2f} NET_INCOME to OI.")
+                income += Income(iso.realized_gain)
+                _logger.info(f"+${iso.realized_gain:,.2f} REALIZED GAIN to OI.")
             if iso.disposition == ISODisposition.QUALIFYING:
-                income += Income(ltcg=iso.net_income)
-                _logger.info(f"+${iso.net_income:,.2f} NET_INCOME to LTCG.")
+                income += Income(ltcg=iso.realized_gain)
+                _logger.info(f"+${iso.realized_gain:,.2f} REALIZED GAIN to LTCG.")
 
         _logger.info("ISO Income: %s", income)
         return income
@@ -289,16 +289,16 @@ class AlternativeMinimumTaxSystem(TaxSystem):
                 continue
 
             if iso.sale_date.year == year and iso.exercise_date.year == year:
-                _logger.info(f"+${iso.net_income:,.2f} NET INCOME to OI.")
-                income += Income(iso.net_income)
+                _logger.info(f"+${iso.realized_gain:,.2f} NET INCOME to OI.")
+                income += Income(iso.realized_gain)
                 continue
 
             if iso.sale_date.year == year:
                 if iso.disposition == ISODisposition.DISQUALIFYING:
                     income -= Income(ordinary=iso.bargain_element)
                     _logger.info(f"-${iso.bargain_element:,.2f} BARGAIN ELEMENT to OI.")
-                    income += Income(ordinary=iso.net_income)
-                    _logger.info(f"+${iso.net_income:,.2f} NET GAIN to OI.")
+                    income += Income(ordinary=iso.realized_gain)
+                    _logger.info(f"+${iso.realized_gain:,.2f} NET GAIN to OI.")
                 if iso.disposition == ISODisposition.QUALIFYING:
                     income += Income(ltcg=iso.amt_gain)
                     _logger.info(f"+${iso.amt_gain:,.2f} AMT GAIN to LTCG.")
