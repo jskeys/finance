@@ -57,7 +57,7 @@ def run_scenarios(
     for exercise_strategy in exercise_strategies:
         isos = sorted(
             isos,
-            key=lambda k: k.exercise_price,
+            key=lambda k: k.strike_price,
             reverse=exercise_strategy == ExerciseStrategy.DECREASING_STRIKE,
         )
         iso_share_counts = [iso.num_shares for iso in isos]
