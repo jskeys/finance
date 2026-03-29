@@ -15,8 +15,9 @@ import datetime
 import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Optional, Tuple
+from .core import to_decimal
 
-SECONDS_PER_YEAR: float = 31536000
+SECONDS_PER_YEAR: float = 31_536_000
 CURRENCY_EPSILON = Decimal("1.00")
 ROUNDING_STRATEGY = ROUND_HALF_EVEN
 
@@ -61,8 +62,8 @@ class Entry:
         amount: Signed monetary amount applied to the account.
 
             Convention:
-                amount > 0  → credit
-                amount < 0  → debit
+                amount > 0  → debit
+                amount < 0  → credit
 
     Notes:
         - Entries are immutable once created.
@@ -79,8 +80,10 @@ class Entry:
 
     def __post_init__(self):
         """Quantize the amount using `CURRENCY_EPSILON`."""
+        amount = to_decimal(self.amount)
+
         object.__setattr__(
-            self, "amount", self.amount.quantize(CURRENCY_EPSILON, rounding=ROUNDING_STRATEGY)
+            self, "amount", amount.quantize(CURRENCY_EPSILON, rounding=ROUNDING_STRATEGY)
         )
 
 
