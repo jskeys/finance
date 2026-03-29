@@ -62,7 +62,7 @@ class IncentiveStockOption:
         return self.strike_price * self.num_shares
 
     @property
-    def net_income(self) -> Decimal:
+    def realized_gain(self) -> Decimal:
         """
         Total economic gain (or loss) from exercise to sale.
         """

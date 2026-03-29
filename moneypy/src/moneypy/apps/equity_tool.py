@@ -148,7 +148,7 @@ def run_scenarios(
                             ),
                             "iso_net_gain": sum(
                                 [
-                                    iso.net_income
+                                    iso.realized_gain
                                     for iso in processed_isos
                                     if iso.sale_date is not None and iso.sale_date.year == year
                                 ]
