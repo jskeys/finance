@@ -258,7 +258,7 @@ def main():
     logger.setLevel(args.log_level)
     logger.addHandler(handler)
 
-    isos = import_isos_from_yaml(args.equity_path, args.iso_fmv)
+    isos = import_isos_from_yaml(args.equity_path)
     isos = [dataclasses.replace(iso, exercise_date=None, sale_date=None) for iso in isos]
 
     logger.info("Running scenarios.")
