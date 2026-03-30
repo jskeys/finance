@@ -1,6 +1,5 @@
 import argparse
 import dataclasses
-import itertools
 import logging
 import typing
 from datetime import date
@@ -9,15 +8,34 @@ from enum import IntEnum, auto
 
 import pandas as pd
 import plotly.graph_objects as go
+import tabulate
 from dateutil.relativedelta import relativedelta
 
-from moneypy.securities import IncentiveStockOption, import_isos_from_yaml
-from moneypy.tax import AlternativeMinimumTaxSystem, Income, RegularTaxSystem
+from moneypy.securities import (
+    IncentiveStockOption,
+    RestrictedStockUnit,
+    import_isos_from_yaml,
+    import_rsus_from_yaml,
+)
+from moneypy.tax import AlternativeMinimumTaxSystem, Income, RegularTaxSystem, TaxSystem
 
 
 class ExerciseStrategy(IntEnum):
     INCREASING_STRIKE = 0
     DECREASING_STRIKE = auto()
+
+
+@dataclasses.dataclass(frozen=True)
+class ISOScenario:
+    num_to_exercise: int
+    num_to_sell: int
+    fair_market_value: Decimal
+    price_at_exercise: Decimal
+    price_at_sale: Decimal
+    exercise_strategy: ExerciseStrategy
+    exercise_date: date
+    sale_date: date
+    tax_system: TaxSystem
 
 
 def allocate(points, target):
@@ -30,212 +48,159 @@ def allocate(points, target):
 
 def run_scenarios(
     income: Income,
-    isos: typing.Sequence[IncentiveStockOption],
-    fair_market_value: Decimal,
-    price_at_exercise: Decimal,
-    price_at_sale: Decimal,
-    exercise_strategies: typing.Sequence[ExerciseStrategy] = (
-        ExerciseStrategy.INCREASING_STRIKE,
-        ExerciseStrategy.DECREASING_STRIKE,
-    ),
-    delta: int = 1000,
-    sale_date: typing.Optional[date] = None,
+    scenarios: typing.Sequence[ISOScenario],
+    isos: typing.Sequence[IncentiveStockOption] = [],
+    rsus: typing.Sequence[RestrictedStockUnit] = [],
 ):
-
-    rts = RegularTaxSystem()
-    amt = AlternativeMinimumTaxSystem()
 
     # Discount salary-related tax at the end because we're ignoring salary, but it still factors in
     # calculations.
-    baseline_tax = rts.calculate_tax(2026, income).tax
+    baseline_tax = RegularTaxSystem().calculate_tax(2026, income).tax
 
-    scenarios = []
+    scenario_results = []
 
-    if sale_date is None:
-        sale_date = date.today() + relativedelta(years=1)
-
-    for exercise_strategy in exercise_strategies:
+    for scenario in scenarios:
         isos = sorted(
-            isos,
+            isos.copy(),
             key=lambda k: k.strike_price,
-            reverse=exercise_strategy == ExerciseStrategy.DECREASING_STRIKE,
+            reverse=scenario.exercise_strategy == ExerciseStrategy.DECREASING_STRIKE,
         )
         iso_share_counts = [iso.num_shares for iso in isos]
-        num_iso_shares = sum(iso_share_counts)
-        for num_exercised in range(0, num_iso_shares + delta, delta):
-            for num_sold in range(0, num_exercised + delta, delta):
-                exercise_schedule = allocate(iso_share_counts, num_exercised)
-                sale_schedule = allocate(iso_share_counts, num_sold)
-                processed_isos = []
-                for iso, exercise_shares, sale_shares in zip(
-                    isos, exercise_schedule, sale_schedule
-                ):
-                    # Exercise up to `exercise_shares`. Returns the exercised shares and the
-                    # un-exercised shares. Tuck the unexercised shares away for later.
-                    (exercised, unexercised) = iso.exercise(
-                        date.today(), fair_market_value, exercise_shares
-                    )
-                    # Capture the unexercised shares, although they won't have any bearing on the
-                    # scenario outcome
-                    if unexercised:
-                        processed_isos += [unexercised]
 
-                    # Sell some of the exercised shares now and sell the rest in one year.
-                    if exercised:
-                        (sold, unsold) = exercised.sell(
-                            date.today(), price_at_exercise, sale_shares
-                        )
-                        if sold:
-                            processed_isos += [sold]
-                        if unsold:
-                            processed_isos += [unsold.sell(sale_date, price_at_sale)[0]]
+        exercise_schedule = allocate(iso_share_counts, scenario.num_to_exercise)
+        sale_schedule = allocate(iso_share_counts, scenario.num_to_sell)
+        processed_isos = []
 
-                years = set(
-                    [
-                        iso.exercise_date.year
-                        for iso in processed_isos
-                        if iso.exercise_date is not None
-                    ]
-                    + [iso.sale_date.year for iso in processed_isos if iso.sale_date is not None]
+        for iso, exercise_shares, sale_shares in zip(isos, exercise_schedule, sale_schedule):
+            # Exercise up to `exercise_shares`. Returns the exercised shares and the
+            # un-exercised shares. Tuck the unexercised shares away for later.
+            (exercised, unexercised) = iso.exercise(
+                scenario.exercise_date, scenario.fair_market_value, exercise_shares
+            )
+            # Capture the unexercised shares, although they won't have any bearing on the
+            # scenario outcome
+            if unexercised:
+                processed_isos += [unexercised]
+
+            # Sell some of the exercised shares now and sell the rest in one year.
+            if exercised:
+                (sold, unsold) = exercised.sell(
+                    scenario.exercise_date, scenario.price_at_exercise, sale_shares
                 )
+                if sold:
+                    processed_isos += [sold]
+                if unsold:
+                    processed_isos += [unsold.sell(scenario.sale_date, scenario.price_at_sale)[0]]
 
-                for year, system in itertools.product(years, (rts, amt)):
-                    scenarios.append(
-                        {
-                            "exercise_strategy": exercise_strategy,
-                            "num_exercised": num_exercised,
-                            "num_sold": num_sold,
-                            **dataclasses.asdict(
-                                system.calculate_tax(year, income, processed_isos)
-                            ),
-                            "shares_exercised_this_year": sum(
-                                [
-                                    iso.num_shares
-                                    for iso in processed_isos
-                                    if iso.exercise_date is not None
-                                    and iso.exercise_date.year == year
-                                ]
-                            ),
-                            "shares_sold_this_year": sum(
-                                [
-                                    iso.num_shares
-                                    for iso in processed_isos
-                                    if iso.sale_date is not None and iso.sale_date.year == year
-                                ]
-                            ),
-                            "iso_exercise_cost": sum(
-                                [
-                                    iso.exercise_cost
-                                    for iso in processed_isos
-                                    if iso.exercise_date is not None
-                                    and iso.exercise_date.year == year
-                                ]
-                            ),
-                            "iso_exercise_cost": sum(
-                                [
-                                    iso.exercise_cost
-                                    for iso in processed_isos
-                                    if iso.exercise_date is not None
-                                    and iso.exercise_date.year == year
-                                ]
-                            ),
-                            "iso_proceeds": sum(
-                                [
-                                    iso.proceeds
-                                    for iso in processed_isos
-                                    if iso.sale_date is not None and iso.sale_date.year == year
-                                ]
-                            ),
-                            "iso_net_gain": sum(
-                                [
-                                    iso.realized_gain
-                                    for iso in processed_isos
-                                    if iso.sale_date is not None and iso.sale_date.year == year
-                                ]
-                            ),
-                        }
-                    )
+        years = set(
+            [iso.exercise_date.year for iso in processed_isos if iso.exercise_date is not None]
+            + [iso.sale_date.year for iso in processed_isos if iso.sale_date is not None]
+            + [rsu.sale_date.year for rsu in rsus if rsu.sale_date is not None]
+            + [rsu.vest_date.year for rsu in rsus if rsu.vest_date is not None]
+        )
 
-    multi_index = ["year", "system", "exercise_strategy"]
+        for year in years:
+            # Get rid of keys that don't add value.A
+            scenario_dict = dataclasses.asdict(scenario)
+            scenario_dict.pop("tax_system")
+            scenario_results.append(
+                {
+                    **scenario_dict,
+                    **dataclasses.asdict(
+                        scenario.tax_system.calculate_tax(
+                            year=year,
+                            income=income,
+                            isos=processed_isos,
+                            rsus=rsus,
+                        )
+                    ),
+                    "shares_exercised_this_year": sum(
+                        [
+                            iso.num_shares
+                            for iso in processed_isos
+                            if iso.exercise_date is not None and iso.exercise_date.year == year
+                        ]
+                    ),
+                    "shares_sold_this_year": sum(
+                        [
+                            iso.num_shares
+                            for iso in processed_isos
+                            if iso.sale_date is not None and iso.sale_date.year == year
+                        ]
+                    ),
+                    "iso_exercise_cost": sum(
+                        [
+                            iso.exercise_cost
+                            for iso in processed_isos
+                            if iso.exercise_date is not None and iso.exercise_date.year == year
+                        ]
+                    ),
+                    "iso_proceeds": sum(
+                        [
+                            iso.proceeds
+                            for iso in processed_isos
+                            if iso.sale_date is not None and iso.sale_date.year == year
+                        ]
+                    ),
+                    "iso_realized_gain": sum(
+                        [
+                            iso.realized_gain
+                            for iso in processed_isos
+                            if iso.sale_date is not None and iso.sale_date.year == year
+                        ]
+                    ),
+                    "rsu_proceeds": sum(
+                        [
+                            rsu.proceeds
+                            for rsu in rsus
+                            if rsu.sale_date is not None and rsu.sale_date.year == year
+                        ]
+                    ),
+                }
+            )
 
-    df = pd.DataFrame(scenarios).set_index(multi_index).sort_index()
-    # Add a column that provides the actual tax that year.
-    df["max_tax"] = df.groupby(["year", "exercise_strategy", "num_exercised", "num_sold"])[
-        "tax"
-    ].transform("max")
-    df["cash_flow"] = df["iso_proceeds"] - df["iso_exercise_cost"] - df["max_tax"] + baseline_tax
-
-    # Summarize strategy across all years.
-    multi_year_groupby = ["system", "exercise_strategy", "num_exercised", "num_sold"]
-
-    df["total_proceeds"] = df.groupby(multi_year_groupby)["iso_proceeds"].transform("sum")
-    df["total_cash_flow"] = df.groupby(multi_year_groupby)["cash_flow"].transform("sum")
-    df["total_tax"] = df.groupby(multi_year_groupby)["max_tax"].transform("sum")
+    df = pd.DataFrame.from_dict(scenario_results)
+    df["cash_flow"] = df["iso_proceeds"] + df["rsu_proceeds"] - df["iso_exercise_cost"] - df["tax"]
 
     return df
 
 
-def visualize_scenarios(df: pd.DataFrame) -> typing.List[go.Figure]:
+def visualize_scenario(x: pd.Series, y: pd.Series, z: pd.Series) -> typing.Sequence[go.Trace]:
 
-    year = 2026
-    system = "regular_tax"
-    exercise_strategy = ExerciseStrategy.INCREASING_STRIKE
+    zmin = min(z)
+    zmax = max(z)
 
-    x = df.loc[year, system, exercise_strategy]["num_exercised"]
-    y = df.loc[year, system, exercise_strategy]["num_sold"]
+    if zmin > 0 or zmin == zmax:
+        colorscale = [[0.0, "yellow"], [1.0, "green"]]
+    else:
+        colorscale = [
+            [0.0, "red"],
+            [abs(zmin) / (abs(zmin) + abs(zmax)), "yellow"],
+            [1.0, "green"],
+        ]
 
-    figures = []
-    for title, z in {
-        "Proceeds": df.loc[year, system, exercise_strategy]["iso_proceeds"],
-        "Total Proceeds": df.loc[year, system, exercise_strategy]["total_proceeds"],
-        "Tax": df.loc[year, system, exercise_strategy]["max_tax"],
-        "Total Tax": df.loc[year, system, exercise_strategy]["total_tax"],
-        "Cash Flow": df.loc[year, system, exercise_strategy]["cash_flow"],
-        "Total Cash Flow": df.loc[(year, system, exercise_strategy), "total_cash_flow"],
-    }.items():
-        zmin = min(z)
-        zmax = max(z)
+    traces = [
+        go.Heatmap(
+            x=x,
+            y=y,
+            z=z,
+            colorscale=colorscale,
+            showscale=False,
+            zmin=zmin,
+            zmax=zmax,
+        ),
+        go.Contour(
+            x=x,
+            y=y,
+            z=z,
+            contours={"coloring": "none", "showlabels": True},
+            showlegend=False,
+            showscale=False,
+            connectgaps=False,
+        ),
+    ]
 
-        if zmin > 0:
-            colorscale = [[0.0, "yellow"], [1.0, "green"]]
-        else:
-            colorscale = [
-                [0.0, "red"],
-                [abs(zmin) / (abs(zmin) + abs(zmax)), "yellow"],
-                [1.0, "green"],
-            ]
-
-        fig = go.Figure()
-        fig.update_layout(
-            title_text=title,
-            title_x=0.5,
-            height=500,
-            width=500,
-            xaxis_title="Exercised Shares",
-            yaxis_title="Shares Sold at Exercise",
-        )
-        fig.add_trace(
-            go.Heatmap(
-                x=x,
-                y=y,
-                z=z,
-                colorscale=colorscale,
-                zmin=zmin,
-                zmax=zmax,
-            )
-        )
-        fig.add_trace(
-            go.Contour(
-                x=x,
-                y=y,
-                z=z,
-                contours={"coloring": "none", "showlabels": True},
-                showscale=False,
-                connectgaps=False,
-            )
-        )
-        figures.append(fig)
-    return figures
+    return traces
 
 
 def main():
@@ -243,9 +208,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("equity_path")
     parser.add_argument("--income", "-w", type=Decimal)
-    parser.add_argument("--iso_fmv", "-i", type=Decimal)
-    parser.add_argument("--iso_price_at_exercise", "-e", type=Decimal)
-    parser.add_argument("--iso_price_at_sale", "-s", type=Decimal)
+    parser.add_argument("--num_to_exercise", "-ne", type=int)
+    parser.add_argument("--num_to_sell", "-ns", type=int)
+    parser.add_argument("--iso_fmv", "-f", type=Decimal)
+    parser.add_argument("--iso_price_at_exercise", "-pe", type=Decimal)
+    parser.add_argument("--iso_price_at_sale", "-ps", type=Decimal)
     parser.add_argument("--rsu_fmv", "-r", type=Decimal)
     parser.add_argument("--log-level", "-l", type=int, default=logging.WARN)
 
@@ -258,18 +225,35 @@ def main():
     logger.setLevel(args.log_level)
     logger.addHandler(handler)
 
-    isos = import_isos_from_yaml(args.equity_path)
-    isos = [dataclasses.replace(iso, exercise_date=None, sale_date=None) for iso in isos]
+    with open(args.equity_path) as equity_file:
+        isos = import_isos_from_yaml(equity_file)
+        isos = [dataclasses.replace(iso, exercise_date=None, sale_date=None) for iso in isos]
+
+    with open(args.equity_path) as equity_file:
+        rsus = import_rsus_from_yaml(equity_file)
+        rsus = [dataclasses.replace(rsu) for rsu in rsus]
 
     logger.info("Running scenarios.")
     df = run_scenarios(
-        Income(args.income),
-        isos,
-        args.iso_fmv,
-        args.iso_price_at_exercise,
-        args.iso_price_at_sale,
+        isos=isos,
+        rsus=rsus,
+        income=Income(args.income),
+        scenarios=[
+            ISOScenario(
+                exercise_date=date.today(),
+                sale_date=date.today() + relativedelta(years=1),
+                exercise_strategy=ExerciseStrategy.INCREASING_STRIKE,
+                fair_market_value=args.iso_fmv,
+                num_to_exercise=args.num_to_exercise,
+                num_to_sell=args.num_to_sell,
+                price_at_exercise=args.iso_price_at_exercise,
+                price_at_sale=args.iso_price_at_sale,
+                tax_system=tax_system,
+            )
+            for tax_system in (AlternativeMinimumTaxSystem(), RegularTaxSystem())
+        ],
     )
-    print(df)
+    print(tabulate.tabulate(df, headers=df.columns))
 
 
 if __name__ == "__main__":

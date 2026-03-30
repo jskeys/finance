@@ -284,12 +284,9 @@ class RestrictedStockUnit:
         return Decimal("NaN")
 
 
-def import_isos_from_yaml(path: str) -> typing.List[IncentiveStockOption]:
+def import_isos_from_yaml(file: typing.IO[str]) -> typing.List[IncentiveStockOption]:
 
-    with open(path) as iso_file:
-        equity_dict = yaml.safe_load(iso_file)
-        _logger.info(f"Loaded equity summary from `{path}`.")
-
+    equity_dict = yaml.safe_load(file)
     isos: typing.List[IncentiveStockOption] = []
 
     for equity in equity_dict:
@@ -306,12 +303,9 @@ def import_isos_from_yaml(path: str) -> typing.List[IncentiveStockOption]:
     return isos
 
 
-def import_rsus_from_yaml(path: str) -> typing.List[RestrictedStockUnit]:
+def import_rsus_from_yaml(file: typing.IO[bytes]) -> typing.List[RestrictedStockUnit]:
 
-    with open(path) as rsu_file:
-        equity_dict = yaml.safe_load(rsu_file)
-        _logger.info(f"Loaded equity summary from `{path}`.")
-
+    equity_dict = yaml.safe_load(file)
     rsus: typing.List[RestrictedStockUnit] = []
 
     for equity in equity_dict:
