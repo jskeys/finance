@@ -125,9 +125,6 @@ class IncentiveStockOption:
         if self.exercise_date is not None:
             raise ValueError(f"Option {self.uid} is already exercised.")
 
-        if num_shares > self.num_shares:
-            raise ValueError("Cannot exercise more shares than ISO has.")
-
         # All shares are exercised. There is nothing left to return.
         if (num_shares is None) or (num_shares == self.num_shares):
             return (
@@ -139,6 +136,15 @@ class IncentiveStockOption:
                 None,
             )
 
+        if num_shares > self.num_shares:
+            raise ValueError(
+                "Tried to exercise {num_shares} but ISO {iso.uid} only has {self.num_shares}"
+                + " exercisable shares."
+            )
+
+        if num_shares < 0:
+            raise ValueError("Must exercise more than zero shares.")
+
         # Allow this to make life easier on clients.
         if num_shares == 0:
             _logger.info(f"Requested to exercise 0 shares from ISO {self.uid}.")
@@ -146,9 +152,6 @@ class IncentiveStockOption:
                 None,
                 dataclasses.replace(self),
             )
-
-        if num_shares < 0:
-            raise ValueError("Must exercise more than zero shares.")
 
         # Split the option into an exercised and non-exercised instances. Keep the `uid`, `grant_date`,
         # `num_shares`, and `strike_price` constant.
@@ -195,12 +198,18 @@ class IncentiveStockOption:
                 None,
             )
 
-        if num_shares == 0:
-            _logger.info(f"Requested to sell 0 shares from ISO {self.uid}.")
-            return (None, dataclasses.replace(self))
+        if num_shares > self.num_shares:
+            raise ValueError(
+                "Tried to sell {num_shares} but ISO {iso.uid} only has {self.num_shares} sellable"
+                + " shares."
+            )
 
         if num_shares < 0:
             raise ValueError("Must sell zero or more shares.")
+
+        if num_shares == 0:
+            _logger.info(f"Requested to sell 0 shares from ISO {self.uid}.")
+            return (None, dataclasses.replace(self))
 
         # Split the option into an sold and non-sold instances. Keep the `uid`, `grant_date`,
         # `num_shares`, and `strike_price` constant.
