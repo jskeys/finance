@@ -311,9 +311,3 @@ def import_rsus_from_yaml(path: str) -> typing.List[RestrictedStockUnit]:
             )
 
     return rsus
-
-
-if __name__ == "__main__":
-    iso = IncentiveStockOption("test", 1000, date.today(), Decimal(0.55))
-    isos = iso.exercise(date.today(), Decimal(10.00), 250)
-    print(isos[0].sell(date.today(), Decimal(20), 100))
