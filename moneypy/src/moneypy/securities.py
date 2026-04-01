@@ -147,7 +147,7 @@ class IncentiveStockOption:
 
         # Allow this to make life easier on clients.
         if num_shares == 0:
-            _logger.info(f"Requested to exercise 0 shares from ISO {self.uid}.")
+            _logger.debug(f"Requested to exercise 0 shares from ISO {self.uid}.")
             return (
                 None,
                 dataclasses.replace(self),
@@ -208,7 +208,7 @@ class IncentiveStockOption:
             raise ValueError("Must sell zero or more shares.")
 
         if num_shares == 0:
-            _logger.info(f"Requested to sell 0 shares from ISO {self.uid}.")
+            _logger.debug(f"Requested to sell 0 shares from ISO {self.uid}.")
             return (None, dataclasses.replace(self))
 
         # Split the option into an sold and non-sold instances. Keep the `uid`, `grant_date`,
