@@ -255,6 +255,16 @@ class RestrictedStockUnit:
         return Decimal("NaN")
 
     @property
+    def proceeds(self) -> Decimal:
+        """
+        Total economic gain (or loss) from exercise to sale.
+        """
+        if self.sale_date is not None and self.sale_price is not None:
+            return self.sale_price * self.num_shares
+
+        return Decimal("NaN")
+
+    @property
     def capital_gain(self) -> Decimal:
         """
         Total economic gain (or loss) from exercise to sale.
