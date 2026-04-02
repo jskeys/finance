@@ -244,6 +244,11 @@ class RestrictedStockUnit:
                 value = to_decimal(getattr(self, attr))
                 object.__setattr__(self, attr, value)
 
+        if (self.sale_price is None) ^ (self.sale_date is None):
+            raise ValueError(
+                "Only one of `sale_price` and `sale_date` was set for RSU" + f"`{self.uid}`."
+            )
+
     @property
     def rsu_basis(self) -> Decimal:
         """
