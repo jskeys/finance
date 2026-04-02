@@ -125,9 +125,6 @@ class IncentiveStockOption:
         if self.exercise_date is not None:
             raise ValueError(f"Option {self.uid} is already exercised.")
 
-        if num_shares > self.num_shares:
-            raise ValueError("Cannot exercise more shares than ISO has.")
-
         # All shares are exercised. There is nothing left to return.
         if (num_shares is None) or (num_shares == self.num_shares):
             return (
@@ -139,16 +136,22 @@ class IncentiveStockOption:
                 None,
             )
 
-        # Allow this to make life easier on clients.
-        if num_shares == 0:
-            _logger.info(f"Requested to exercise 0 shares from ISO {self.uid}.")
-            return (
-                None,
-                dataclasses.replace(self),
+        if num_shares > self.num_shares:
+            raise ValueError(
+                "Tried to exercise {num_shares} but ISO {iso.uid} only has {self.num_shares}"
+                + " exercisable shares."
             )
 
         if num_shares < 0:
             raise ValueError("Must exercise more than zero shares.")
+
+        # Allow this to make life easier on clients.
+        if num_shares == 0:
+            _logger.debug(f"Requested to exercise 0 shares from ISO {self.uid}.")
+            return (
+                None,
+                dataclasses.replace(self),
+            )
 
         # Split the option into an exercised and non-exercised instances. Keep the `uid`, `grant_date`,
         # `num_shares`, and `strike_price` constant.
@@ -195,12 +198,18 @@ class IncentiveStockOption:
                 None,
             )
 
-        if num_shares == 0:
-            _logger.info(f"Requested to sell 0 shares from ISO {self.uid}.")
-            return (None, dataclasses.replace(self))
+        if num_shares > self.num_shares:
+            raise ValueError(
+                "Tried to sell {num_shares} but ISO {iso.uid} only has {self.num_shares} sellable"
+                + " shares."
+            )
 
         if num_shares < 0:
             raise ValueError("Must sell zero or more shares.")
+
+        if num_shares == 0:
+            _logger.debug(f"Requested to sell 0 shares from ISO {self.uid}.")
+            return (None, dataclasses.replace(self))
 
         # Split the option into an sold and non-sold instances. Keep the `uid`, `grant_date`,
         # `num_shares`, and `strike_price` constant.
@@ -235,6 +244,11 @@ class RestrictedStockUnit:
                 value = to_decimal(getattr(self, attr))
                 object.__setattr__(self, attr, value)
 
+        if (self.sale_price is None) ^ (self.sale_date is None):
+            raise ValueError(
+                "Only one of `sale_price` and `sale_date` was set for RSU" + f"`{self.uid}`."
+            )
+
     @property
     def rsu_basis(self) -> Decimal:
         """
@@ -242,6 +256,16 @@ class RestrictedStockUnit:
         """
         if self.vest_fair_market_value is not None:
             return self.vest_fair_market_value * self.num_shares
+
+        return Decimal("NaN")
+
+    @property
+    def proceeds(self) -> Decimal:
+        """
+        Total economic gain (or loss) from exercise to sale.
+        """
+        if self.sale_date is not None and self.sale_price is not None:
+            return self.sale_price * self.num_shares
 
         return Decimal("NaN")
 
@@ -302,9 +326,3 @@ def import_rsus_from_yaml(path: str) -> typing.List[RestrictedStockUnit]:
             )
 
     return rsus
-
-
-if __name__ == "__main__":
-    iso = IncentiveStockOption("test", 1000, date.today(), Decimal(0.55))
-    isos = iso.exercise(date.today(), Decimal(10.00), 250)
-    print(isos[0].sell(date.today(), Decimal(20), 100))
