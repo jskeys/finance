@@ -37,7 +37,7 @@ $(build_dir)/.typecheck: $(py_src) | $(build_dir)
 .PHONY: install
 install: $(build_dir)/.install
 $(build_dir)/.install: $(py_dir)/pyproject.toml $(py_src) | $(build_dir)
-	uv pip install -e $(py_dir)[dev]
+	uv pip install -e $(py_dir)[dev,apps]
 	touch $@
 
 .PHONY: lint
