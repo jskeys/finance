@@ -289,7 +289,6 @@ def import_isos_from_yaml(file: typing.IO[str]) -> typing.List[IncentiveStockOpt
 
     equity_dict = yaml.safe_load(file)
     isos: typing.List[IncentiveStockOption] = []
-    print(equity_dict)
 
     for equity in equity_dict:
         if equity.pop("class") == "ISO":
