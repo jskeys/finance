@@ -2,7 +2,7 @@ import argparse
 import dataclasses
 import logging
 import typing
-from datetime import date
+from datetime import datetime
 from decimal import Decimal
 from enum import IntEnum, auto
 
@@ -33,8 +33,8 @@ class ISOScenario:
     price_at_exercise: Decimal
     price_at_sale: Decimal
     exercise_strategy: ExerciseStrategy
-    exercise_date: date
-    sale_date: date
+    exercise_date: datetime
+    sale_date: datetime
     tax_system: TaxSystem
 
 
@@ -240,8 +240,8 @@ def main():
         income=Income(args.income),
         scenarios=[
             ISOScenario(
-                exercise_date=date.today(),
-                sale_date=date.today() + relativedelta(years=1),
+                exercise_date=datetime.today(),
+                sale_date=datetime.today() + relativedelta(years=1),
                 exercise_strategy=ExerciseStrategy.INCREASING_STRIKE,
                 fair_market_value=args.iso_fmv,
                 num_to_exercise=args.num_to_exercise,

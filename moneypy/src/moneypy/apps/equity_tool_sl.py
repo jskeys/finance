@@ -1,7 +1,7 @@
 import dataclasses
 import io
 import typing
-from datetime import date
+from datetime import datetime
 from decimal import Decimal
 
 import pandas as pd
@@ -28,13 +28,13 @@ rts = RegularTaxSystem()
 amt = AlternativeMinimumTaxSystem()
 
 
-def _coerce_date(x) -> typing.Optional[date]:
+def _coerce_date(x) -> typing.Optional[datetime]:
     if x is not None:
-        return pd.to_datetime(x, errors="coerce").date()
+        return pd.to_datetime(x, errors="coerce")
     return None
 
 
-def _coerce_decimal(x) -> typing.Optional[date]:
+def _coerce_decimal(x) -> typing.Optional[Decimal]:
     try:
         return to_decimal(x)
     except Exception:
@@ -133,8 +133,8 @@ def main():
         price_at_exercise=to_decimal(price_at_exercise),
         price_at_sale=to_decimal(price_at_sale),
         exercise_strategy=ExerciseStrategy.INCREASING_STRIKE,
-        exercise_date=date.today(),
-        sale_date=date.today() + relativedelta(years=1),
+        exercise_date=datetime.today(),
+        sale_date=datetime.today() + relativedelta(years=1),
         tax_system=rts,
     )
 
