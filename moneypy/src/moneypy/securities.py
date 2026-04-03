@@ -2,11 +2,12 @@ import dataclasses
 import enum
 import logging
 import typing
-from datetime import date
+from datetime import datetime
 from decimal import Decimal
 
 import dacite
 import yaml
+from dateutil import parser
 
 from .core import ONE_YEAR, ZERO, to_decimal
 
@@ -23,11 +24,11 @@ class ISODisposition(enum.Enum):
 class IncentiveStockOption:
     uid: str
     num_shares: int
-    grant_date: date
+    grant_date: datetime
     strike_price: Decimal
-    exercise_date: typing.Optional[date] = None
+    exercise_date: typing.Optional[datetime] = None
     fair_market_value: typing.Optional[Decimal] = None
-    sale_date: typing.Optional[date] = None
+    sale_date: typing.Optional[datetime] = None
     sale_price: typing.Optional[Decimal] = None
 
     def __post_init__(self):
@@ -110,7 +111,7 @@ class IncentiveStockOption:
 
     def exercise(
         self,
-        date: date,
+        date: datetime,
         fair_market_value: Decimal,
         num_shares: typing.Optional[int] = None,
     ) -> typing.Tuple[
@@ -172,7 +173,7 @@ class IncentiveStockOption:
 
     def sell(
         self,
-        date: date,
+        date: datetime,
         price: Decimal,
         num_shares: typing.Optional[int] = None,
     ) -> typing.Tuple[
@@ -231,11 +232,11 @@ class IncentiveStockOption:
 class RestrictedStockUnit:
     uid: str
     num_shares: int
-    grant_date: date
-    vest_date: date
+    grant_date: datetime
+    vest_date: datetime
     vest_fair_market_value: typing.Optional[Decimal] = None
     sale_price: typing.Optional[Decimal] = None
-    sale_date: typing.Optional[date] = None
+    sale_date: typing.Optional[datetime] = None
 
     def __post_init__(self):
         """Quantize currency values using `CURRENCY_EPSILON`."""
@@ -288,6 +289,7 @@ def import_isos_from_yaml(file: typing.IO[str]) -> typing.List[IncentiveStockOpt
 
     equity_dict = yaml.safe_load(file)
     isos: typing.List[IncentiveStockOption] = []
+    print(equity_dict)
 
     for equity in equity_dict:
         if equity.pop("class") == "ISO":
@@ -296,7 +298,10 @@ def import_isos_from_yaml(file: typing.IO[str]) -> typing.List[IncentiveStockOpt
                 dacite.from_dict(
                     IncentiveStockOption,
                     equity,
-                    config=dacite.Config(type_hooks={Decimal: Decimal}),
+                    config=dacite.Config(
+                        cast=[Decimal],
+                        type_hooks={datetime: lambda x: parser.parse(str(x))},
+                    ),
                 )
             )
 
@@ -315,7 +320,10 @@ def import_rsus_from_yaml(file: typing.IO[bytes]) -> typing.List[RestrictedStock
                 dacite.from_dict(
                     RestrictedStockUnit,
                     equity,
-                    config=dacite.Config(type_hooks={Decimal: Decimal}),
+                    config=dacite.Config(
+                        cast=[Decimal],
+                        type_hooks={datetime: lambda x: parser.parse(str(x))},
+                    ),
                 )
             )
 
