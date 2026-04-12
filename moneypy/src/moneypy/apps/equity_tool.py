@@ -61,7 +61,7 @@ def run_scenarios(
 
     for scenario in scenarios:
         isos = sorted(
-            isos.copy(),
+            isos,
             key=lambda k: k.strike_price,
             reverse=scenario.exercise_strategy == ExerciseStrategy.DECREASING_STRIKE,
         )
@@ -159,13 +159,15 @@ def run_scenarios(
                 }
             )
 
-    df = pd.DataFrame.from_dict(scenario_results)
+    df = pd.DataFrame(scenario_results)
     df["cash_flow"] = df["iso_proceeds"] + df["rsu_proceeds"] - df["iso_exercise_cost"] - df["tax"]
 
     return df
 
 
-def visualize_scenario(x: pd.Series, y: pd.Series, z: pd.Series) -> typing.Sequence[go.Trace]:
+def visualize_scenario(
+    x: pd.Series, y: pd.Series, z: pd.Series
+) -> typing.Tuple[go.Heatmap, go.Contour]:
 
     zmin = min(z)
     zmax = max(z)
@@ -179,7 +181,7 @@ def visualize_scenario(x: pd.Series, y: pd.Series, z: pd.Series) -> typing.Seque
             [1.0, "green"],
         ]
 
-    traces = [
+    return (
         go.Heatmap(
             x=x,
             y=y,
@@ -198,9 +200,7 @@ def visualize_scenario(x: pd.Series, y: pd.Series, z: pd.Series) -> typing.Seque
             showscale=False,
             connectgaps=False,
         ),
-    ]
-
-    return traces
+    )
 
 
 def main():
