@@ -171,7 +171,11 @@ def main():
     with rsu_col:
         streamlit.header("RSUs")
         rsus_df = streamlit.data_editor(
-            pd.DataFrame(rsus),
+            # Set column names explicitly. This handles the case where the equities file doesn't
+            # have any RSUs
+            pd.DataFrame(
+                rsus, columns=[field.name for field in dataclasses.fields(RestrictedStockUnit)]
+            ),
             column_config={
                 "num_shares": streamlit.column_config.NumberColumn(
                     "Shares",
