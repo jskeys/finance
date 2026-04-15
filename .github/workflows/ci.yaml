@@ -1,0 +1,18 @@
+on: [pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv venv
+        working-directory: moneypy
+      - run: uv run make install
+        working-directory: moneypy
+      - run: uv run make format
+        working-directory: moneypy
