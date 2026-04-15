@@ -28,6 +28,12 @@ $(build_dir)/.format: $(py_src) | $(build_dir)
 	$(run_format) $^
 	touch $@
 
+.PHONY: format-check
+format-check: $(build_dir)/.format-check
+$(build_dir)/.format-check: $(py_src) | $(build_dir)
+	$(run_format) --check  $^
+	touch $@
+
 .PHONY: typecheck
 typecheck: $(build_dir)/.typecheck
 $(build_dir)/.typecheck: $(py_src) | $(build_dir)
