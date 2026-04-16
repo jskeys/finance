@@ -14,5 +14,7 @@ jobs:
         working-directory: moneypy
       - run: uv run make install
         working-directory: moneypy
-      - run: uv run make format
+      - run: uv run make format-check
+        working-directory: moneypy
+      - run: uv run make isort-check
         working-directory: moneypy
