@@ -1,6 +1,8 @@
-from datetime import datetime
 import uuid
+from datetime import datetime
+
 import moneypy.securities as securities
+
 
 def test_minimal_rsu():
     rsu = securities.RestrictedStockUnit(

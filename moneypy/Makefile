@@ -20,7 +20,7 @@ $(build_dir)/.dist: $(py_src) pyproject.toml
 	touch $@
 
 .PHONY: check
-check: isort format lint typecheck
+check: isort-check format-check lint typecheck
 
 .PHONY: format
 format: $(build_dir)/.format
@@ -54,8 +54,14 @@ $(build_dir)/.lint: $(py_src) .flake8 | $(build_dir)
 
 .PHONY: isort
 isort: $(build_dir)/.isort
-$(build_dir)/.isort: $(py_src) .isort.cfg | $(build_dir)
-	isort $(py_src)
+$(build_dir)/.isort: $(py_src) $(py_test) .isort.cfg | $(build_dir)
+	isort $(py_src) $(py_test)
+	touch $@
+
+.PHONY: isort-check
+isort-check: $(build_dir)/.isort-check
+$(build_dir)/.isort-check: $(py_src) $(py_test) .isort.cfg | $(build_dir)
+	isort --check $(py_src) $(py_test)
 	touch $@
 
 .PHONY: test
