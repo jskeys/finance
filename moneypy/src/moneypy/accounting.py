@@ -15,6 +15,7 @@ import datetime
 import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Optional, Tuple
+
 from .core import to_decimal
 
 SECONDS_PER_YEAR: float = 31536000

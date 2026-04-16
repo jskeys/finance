@@ -1,8 +1,10 @@
 
 import uuid
 from decimal import Decimal
-from moneypy.core import ZERO
+
 from moneypy.accounting import Entry
+from moneypy.core import ZERO
+
 
 def test_entry_accepts_float():
 
