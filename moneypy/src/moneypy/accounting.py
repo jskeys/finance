@@ -16,11 +16,7 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Optional, Tuple
 
-from .core import to_decimal
-
-SECONDS_PER_YEAR: float = 31_536_000
-CURRENCY_EPSILON = Decimal("1.00")
-ROUNDING_STRATEGY = ROUND_HALF_EVEN
+from .core import CURRENCY_EPSILON, ROUNDING_STRATEGY, to_decimal
 
 
 @dataclasses.dataclass(frozen=True)
