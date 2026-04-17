@@ -9,5 +9,5 @@ def test_minimal_rsu():
         uid=uuid.uuid4(),
         num_shares=10000,
         grant_date=datetime(2020, 1, 1),
-        vest_date=datetime(2021, 1, 1)
+        vest_date=datetime(2021, 1, 1),
     )
