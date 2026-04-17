@@ -1,4 +1,5 @@
 import dataclasses
+import typing
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -14,6 +15,10 @@ accounts = {
     "entertainment": Account(uuid.uuid4(), "ENTERTAINMENT"),
     "car_insurance": Account(uuid.uuid4(), "INSURANCE"),
     "mortgage": Account(uuid.uuid4(), "MORTGAGE"),
+    "taxes": Account(uuid.uuid4(), "TAXES"),
+    "benefits": Account(uuid.uuid4(), "BENEFITS"),
+    "retirement": Account(uuid.uuid4(), "RETIREMENT"),
+    "other": Account(uuid.uuid4(), "OTHER"),
 }
 
 
@@ -79,8 +84,12 @@ if __name__ == "__main__":
             Transaction(
                 0,
                 entries=(
+                    Entry(0, 0, accounts["salary"].uid, Decimal(-8_830.67)),
                     Entry(0, 0, accounts["cash"].uid, Decimal(5_398.23)),
-                    Entry(0, 0, accounts["salary"].uid, Decimal(-5_398.23)),
+                    Entry(0, 0, accounts["taxes"].uid, Decimal(2_185.93)),
+                    Entry(0, 0, accounts["benefits"].uid, Decimal(352.60)),
+                    Entry(0, 0, accounts["retirement"].uid, Decimal(883.76)),
+                    Entry(0, 0, accounts["other"].uid, Decimal(10.15)),
                 ),
                 description="SALARY",
                 timestamp=None,
@@ -88,12 +97,16 @@ if __name__ == "__main__":
         ),
     ]
 
+    transactions: typing.List[Transaction] = []
+    for rt in recurring_transactions:
+        transactions.extend(rt.get_transactions(datetime(2026, 1, 1), datetime(2026, 12, 21)))
+
     entries = []
-    for recurring_transaction in recurring_transactions:
-        for transaction in recurring_transaction.get_transactions(
-            datetime(2026, 1, 1), datetime(2026, 12, 21)
-        ):
-            entries.extend(transaction.entries)
+    for tx in transactions:
+        entries.extend(tx.entries)
+
+    for transaction in transactions:
+        print(transaction)
 
     entry_df = pd.DataFrame(dataclasses.asdict(entry) for entry in entries)
     entry_df = entry_df.set_index("uid")
