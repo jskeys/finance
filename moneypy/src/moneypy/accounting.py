@@ -119,7 +119,7 @@ class Transaction:
     uid: uuid.UUID
     entries: Tuple[Entry, ...]
     description: str
-    timestamp: Optional[datetime.datetime]
+    timestamp: datetime.datetime
 
     def __post_init__(self):
         """Check minimum entry count and in-balance conditions."""
