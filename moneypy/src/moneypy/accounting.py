@@ -126,8 +126,8 @@ class Transaction:
         if len(self.entries) < 2:
             raise ValueError("Transaction must contain at least 2 entries.")
 
-        total = sum((e.amount for e in self.entries), Decimal("0"))
-        if total.quantize(Decimal(CURRENCY_EPSILON)) != Decimal(0.0):
+        total = sum((e.amount for e in self.entries), Decimal("0.00"))
+        if total != Decimal(0.0):
             raise ValueError(
                 f"Transaction `{self.description}` is out of balance by $ {total:.2f}."
             )
