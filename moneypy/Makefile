@@ -2,11 +2,12 @@ build_dir=./build
 
 py_dir=${CURDIR}
 py_src_dir=$(py_dir)/src
+py_test_dir=$(py_dir)/test
 py_dist=$(build_dir)/dist
-py_test=$(py_dir)/test
 py_version=$(py_src_dir)/version.py
 
 py_src=$(shell find $(py_src_dir) -name "*.py")
+py_test=$(shell find $(py_test_dir) -name "*.py")
 run_format := python3 -m ruff format --line-length 100 -v
 
 all:
@@ -24,13 +25,13 @@ check: isort-check format-check lint typecheck
 
 .PHONY: format
 format: $(build_dir)/.format
-$(build_dir)/.format: $(py_src) | $(build_dir)
+$(build_dir)/.format: $(py_src) $(py_test) | $(build_dir)
 	$(run_format) $^
 	touch $@
 
 .PHONY: format-check
 format-check: $(build_dir)/.format-check
-$(build_dir)/.format-check: $(py_src) | $(build_dir)
+$(build_dir)/.format-check: $(py_src) $(py_test) | $(build_dir)
 	$(run_format) --check  $^
 	touch $@
 
