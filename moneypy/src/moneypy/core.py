@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from dateutil.relativedelta import relativedelta
 
-CURRENCY_EPSILON = Decimal("1.00")
+CURRENCY_EPSILON = Decimal("0.01")
 ONE_YEAR = relativedelta(years=1)
 ROUNDING_STRATEGY = ROUND_HALF_EVEN
 ZERO = Decimal(0)
