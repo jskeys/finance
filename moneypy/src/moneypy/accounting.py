@@ -16,11 +16,7 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Optional, Tuple
 
-from .core import to_decimal
-
-SECONDS_PER_YEAR: float = 31536000
-CURRENCY_EPSILON = Decimal("1.00")
-ROUNDING_STRATEGY = ROUND_HALF_EVEN
+from .core import CURRENCY_EPSILON, ROUNDING_STRATEGY, to_decimal
 
 
 @dataclasses.dataclass(frozen=True)
@@ -63,8 +59,8 @@ class Entry:
         amount: Signed monetary amount applied to the account.
 
             Convention:
-                amount > 0  → credit
-                amount < 0  → debit
+                amount > 0  → debit
+                amount < 0  → credit
 
     Notes:
         - Entries are immutable once created.
@@ -123,15 +119,15 @@ class Transaction:
     uid: uuid.UUID
     entries: Tuple[Entry, ...]
     description: str
-    timestamp: Optional[datetime.datetime]
+    timestamp: datetime.datetime
 
     def __post_init__(self):
         """Check minimum entry count and in-balance conditions."""
         if len(self.entries) < 2:
             raise ValueError("Transaction must contain at least 2 entries.")
 
-        total = sum((e.amount for e in self.entries), Decimal("0"))
-        if total.quantize(Decimal(CURRENCY_EPSILON)) != Decimal(0.0):
+        total = sum((e.amount for e in self.entries), Decimal("0.00"))
+        if total != Decimal(0.0):
             raise ValueError(
                 f"Transaction `{self.description}` is out of balance by $ {total:.2f}."
             )

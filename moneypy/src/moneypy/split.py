@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Tuple
 
@@ -113,7 +114,7 @@ if __name__ == "__main__":
                 debtors=tuple(accounts.values()),
             ),
             description=e["description"],
-            timestamp=None,
+            timestamp=datetime.today(),
         )
 
     entries = [entry for expense in transactions.values() for entry in expense.entries]
