@@ -173,7 +173,14 @@ def main():
             step=1,
         )
 
-    if x_steps is None or y_steps is None:
+    if (
+        x_min is None
+        or x_max is None
+        or x_steps is None
+        or y_min is None
+        or y_max is None
+        or y_steps is None
+    ):
         streamlit.info("Swept parameter steps must be an integer.")
         return 0
 

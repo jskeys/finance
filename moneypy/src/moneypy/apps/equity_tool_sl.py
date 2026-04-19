@@ -41,6 +41,15 @@ def _coerce_decimal(x) -> typing.Optional[Decimal]:
         return None
 
 
+def rsu_from_df_row(row):
+    rsu_args = {}
+    for field in dataclasses.fields(RestrictedStockUnit):
+        if field.name in row:
+            rsu_args[field.name] = row[field.name]
+
+    return RestrictedStockUnit(**rsu_args)
+
+
 @streamlit.cache_data
 def _run_scenarios(income, scenarios, isos, rsus):
     return run_scenarios(income=income, scenarios=scenarios, isos=isos, rsus=rsus)
@@ -200,7 +209,7 @@ def main():
     rsus_df["sale_price"] = rsus_df["sale_price"].apply(_coerce_decimal)
 
     try:
-        rsus = [RestrictedStockUnit(**row) for row in rsus_df.to_dict(orient="records")]
+        rsus = rsus_df.apply(rsu_from_df_row, axis=1)
     except Exception as e:
         streamlit.info(e)
         return -1
