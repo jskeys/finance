@@ -3,6 +3,9 @@ on: [pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: moneypy
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -13,10 +16,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv venv
-        working-directory: moneypy
       - run: uv run make install
-        working-directory: moneypy
       - run: uv run make format-check
-        working-directory: moneypy
       - run: uv run make isort-check
-        working-directory: moneypy
+      - run: uv run make typecheck
