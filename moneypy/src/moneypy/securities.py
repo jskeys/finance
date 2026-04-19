@@ -307,7 +307,7 @@ def import_isos_from_yaml(file: typing.IO[str]) -> typing.List[IncentiveStockOpt
     return isos
 
 
-def import_rsus_from_yaml(file: typing.IO[bytes]) -> typing.List[RestrictedStockUnit]:
+def import_rsus_from_yaml(file: typing.IO[str]) -> typing.List[RestrictedStockUnit]:
 
     equity_dict = yaml.safe_load(file)
     rsus: typing.List[RestrictedStockUnit] = []
