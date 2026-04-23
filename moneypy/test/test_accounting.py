@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -43,4 +44,5 @@ def test_transaction_handles_rounding():
                 ),
             ),
             description="Test out-of-balance entries.",
+            timestamp=datetime.today(),
         )
