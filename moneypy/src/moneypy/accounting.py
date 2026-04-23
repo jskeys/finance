@@ -16,7 +16,7 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Optional, Tuple
 
-from .core import CURRENCY_EPSILON, ROUNDING_STRATEGY, to_decimal
+from .core import CURRENCY_EPSILON, ROUNDING_STRATEGY, to_currency
 
 
 @dataclasses.dataclass(frozen=True)
@@ -77,11 +77,7 @@ class Entry:
 
     def __post_init__(self):
         """Quantize the amount using `CURRENCY_EPSILON`."""
-        object.__setattr__(
-            self,
-            "amount",
-            to_decimal(self.amount).quantize(CURRENCY_EPSILON, rounding=ROUNDING_STRATEGY),
-        )
+        object.__setattr__(self, "amount", to_currency(self.amount))
 
 
 @dataclasses.dataclass(frozen=True)
