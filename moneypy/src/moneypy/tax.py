@@ -304,3 +304,31 @@ class AlternativeMinimumTaxSystem(TaxSystem):
                     _logger.info(f"+${iso.amt_gain:,.2f} AMT GAIN to LTCG.")
 
         return income
+
+
+class FICATaxSystem:
+    def calculate_tax(self, year: int, income: Income) -> TaxSummary:
+
+        tax = to_currency(self._calc_social_security_tax(income) + self._calc_medicare_tax(income))
+
+        return TaxSummary("FICATaxSystem", year=year, income=income.ordinary, tax=tax)
+
+    def _calc_social_security_tax(self, income: Income) -> Decimal:
+        schedule = Schedule(
+            [
+                Bracket(ZERO, Decimal(0.062)),
+                Bracket(Decimal(184_500), ZERO),
+            ]
+        )
+
+        return sum(schedule.apply(income.ordinary), ZERO)
+
+    def _calc_medicare_tax(self, income: Income) -> Decimal:
+        schedule = Schedule(
+            [
+                Bracket(ZERO, Decimal(0.0145)),
+                Bracket(Decimal(250_000), Decimal(0.0235)),
+            ]
+        )
+
+        return sum(schedule.apply(income.ordinary), ZERO)
