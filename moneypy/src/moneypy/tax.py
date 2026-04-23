@@ -4,7 +4,7 @@ import logging
 import typing
 from decimal import Decimal
 
-from .core import ONE_YEAR, ZERO, VectorTuple, to_decimal
+from .core import ONE_YEAR, ZERO, VectorTuple, to_currency, to_decimal
 from .securities import IncentiveStockOption, ISODisposition, RestrictedStockUnit
 
 _logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class Bracket:
     rate: Decimal = Decimal("1")
 
     def __post_init__(self):
-        """Convert float to Decimal and quantize."""
+        """Convert float to Decimal."""
         for attr in ("threshold", "rate"):
             object.__setattr__(self, attr, to_decimal(getattr(self, attr)))
 

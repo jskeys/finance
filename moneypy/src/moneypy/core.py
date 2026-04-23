@@ -42,11 +42,15 @@ def calc_annuity(
     )
 
 
-def to_decimal(value: DecimalLike):
+def to_decimal(value: DecimalLike) -> Decimal:
     if not isinstance(value, Decimal):
         value = Decimal(str(value))
 
-    return value.quantize(CURRENCY_EPSILON, rounding=ROUNDING_STRATEGY)
+    return value
+
+
+def to_currency(value: DecimalLike, currency_epsilon: Decimal = CURRENCY_EPSILON) -> Decimal:
+    return to_decimal(value).quantize(currency_epsilon, rounding=ROUNDING_STRATEGY)
 
 
 @dataclasses.dataclass(frozen=True)
