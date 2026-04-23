@@ -20,3 +20,4 @@ jobs:
       - run: uv run make format-check
       - run: uv run make isort-check
       - run: uv run make typecheck
+      - run: uv run make test
